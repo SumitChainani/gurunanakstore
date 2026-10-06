@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480" role="img" aria-labelledby="title">
+  <title id="title">Reflective rider vest product illustration</title>
+  <defs><linearGradient id="bg" x2="0" y2="1"><stop stop-color="#f1f0e9"/><stop offset="1" stop-color="#dcddd6"/></linearGradient><linearGradient id="vest" x2="1" y2="1"><stop stop-color="#e1c16f"/><stop offset="1" stop-color="#ae8841"/></linearGradient></defs>
+  <rect width="640" height="480" fill="url(#bg)"/>
+  <circle cx="322" cy="229" r="170" fill="#fff" opacity=".38"/>
+  <ellipse cx="319" cy="393" rx="127" ry="19" fill="#79818a" opacity=".18"/>
+  <path d="m234 102 42-27h89l42 27 63 77-54 42-28-36-10 169H229l-10-169-27 36-54-42 63-77 33-24Z" fill="url(#vest)" stroke="#896c39" stroke-width="8" stroke-linejoin="round"/>
+  <path d="m276 77 45 48 44-48m-88 2 20 81m67-83-22 83" fill="none" stroke="#f1e2bb" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M229 231h178m-177 38h175" stroke="#303b48" stroke-width="17" opacity=".9"/>
+  <path d="M229 226h178m-176 38h173" stroke="#f2e5c3" stroke-width="4"/>
+  <path d="m190 177-49-17 25-31 34 19m231 29 48-17-25-31-33 19" fill="#c8a464" stroke="#896c39" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M276 194h91" stroke="#8c6e37" stroke-width="5" opacity=".55"/>
+  <path d="m319 127 12 31-11 17-12-17Z" fill="#314052"/>
+</svg>

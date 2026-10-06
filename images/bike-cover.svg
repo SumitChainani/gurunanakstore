@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480" role="img" aria-labelledby="title">
+  <title id="title">Motorcycle cover product illustration</title>
+  <defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#eae9e3"/><stop offset="1" stop-color="#d8d9d5"/></linearGradient><linearGradient id="cover" x2="1" y2="1"><stop stop-color="#586577"/><stop offset="1" stop-color="#263345"/></linearGradient></defs>
+  <rect width="640" height="480" fill="url(#bg)"/>
+  <circle cx="323" cy="227" r="174" fill="#c8a464" opacity=".12"/>
+  <ellipse cx="319" cy="389" rx="201" ry="20" fill="#66717d" opacity=".2"/>
+  <circle cx="190" cy="345" r="58" fill="#1b2530"/><circle cx="190" cy="345" r="43" fill="#c5c7c7"/><circle cx="190" cy="345" r="11" fill="#45505e"/>
+  <circle cx="462" cy="345" r="58" fill="#1b2530"/><circle cx="462" cy="345" r="43" fill="#c5c7c7"/><circle cx="462" cy="345" r="11" fill="#45505e"/>
+  <path d="M126 341c21-78 81-136 151-161 31-11 69-10 93 0 37 16 61 48 92 60l49 12 35 72-37 38h-62c-8-44-45-68-87-68s-78 23-88 68h-68c-7-44-46-66-85-66-37 0-72 21-85 64l-23-19 15-35Z" fill="url(#cover)" stroke="#16212e" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M220 204c37-46 94-65 142-52 35 9 57 41 74 72l-46 16c-26-24-50-40-82-40l-57 20-31 65-57 21 20-57Z" fill="#d8dfe3" opacity=".43"/>
+  <path d="M126 341c13-43 48-64 85-64 39 0 78 22 85 66m-89-201-9-21m16 21-2-24" fill="none" stroke="#c8a464" stroke-width="6" stroke-linecap="round"/>
+  <path d="M139 312 128 341m355-25 24 25" stroke="#d2b779" stroke-width="5" opacity=".82"/>
+  <path d="M221 177c9-18 21-31 37-42l18 6-20 39" fill="#28374a" stroke="#16212e" stroke-width="7"/>
+</svg>

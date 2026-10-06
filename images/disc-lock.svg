@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480" role="img" aria-labelledby="title">
+  <title id="title">Disc brake lock product illustration</title>
+  <defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#efeee9"/><stop offset="1" stop-color="#d8d9d5"/></linearGradient><linearGradient id="lock" x2="1" y2="1"><stop stop-color="#d9bd83"/><stop offset="1" stop-color="#9d7842"/></linearGradient></defs>
+  <rect width="640" height="480" fill="url(#bg)"/>
+  <circle cx="320" cy="238" r="177" fill="#fff" opacity=".34"/>
+  <ellipse cx="323" cy="380" rx="147" ry="20" fill="#737c85" opacity=".18"/>
+  <circle cx="291" cy="234" r="143" fill="#1b2530"/>
+  <circle cx="291" cy="234" r="112" fill="#bcc1c2"/>
+  <circle cx="291" cy="234" r="92" fill="#e2e3df"/>
+  <circle cx="291" cy="234" r="35" fill="#8e9499"/>
+  <circle cx="291" cy="234" r="14" fill="#323d49"/>
+  <g fill="#68727c"><circle cx="291" cy="142" r="7"/><circle cx="356" cy="169" r="7"/><circle cx="383" cy="234" r="7"/><circle cx="356" cy="299" r="7"/><circle cx="291" cy="326" r="7"/><circle cx="226" cy="299" r="7"/><circle cx="199" cy="234" r="7"/><circle cx="226" cy="169" r="7"/></g>
+  <path d="M383 164c54-13 104 10 112 51 6 31-14 55-49 59l-9-41c11-4 15-10 13-18-3-14-26-18-49-12Z" fill="url(#lock)" stroke="#765b33" stroke-width="8" stroke-linejoin="round"/>
+  <rect x="398" y="246" width="82" height="59" rx="17" fill="#18222e" stroke="#111923" stroke-width="7" transform="rotate(-8 439 275)"/>
+  <circle cx="440" cy="276" r="10" fill="#c8a464"/>
+  <path d="M435 285v11" stroke="#d6d8d6" stroke-width="5" stroke-linecap="round"/>
+  <path d="M413 208h34" stroke="#fff0c8" stroke-width="5" stroke-linecap="round"/>
+</svg>

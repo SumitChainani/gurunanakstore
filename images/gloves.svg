@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480" role="img" aria-labelledby="title">
+  <title id="title">Riding gloves product illustration</title>
+  <defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#f0eee7"/><stop offset="1" stop-color="#deddd6"/></linearGradient><linearGradient id="leather" x2="1" y2="1"><stop stop-color="#424b56"/><stop offset="1" stop-color="#17202b"/></linearGradient></defs>
+  <rect width="640" height="480" fill="url(#bg)"/>
+  <circle cx="323" cy="237" r="170" fill="#c8a464" opacity=".14"/>
+  <ellipse cx="318" cy="385" rx="180" ry="22" fill="#89909a" opacity=".25"/>
+  <g fill="url(#leather)" stroke="#131d29" stroke-width="7" stroke-linejoin="round">
+    <path d="M188 340c-10-31-4-61 4-84l26-83c4-12 17-17 27-9 8 7 7 17 3 29l-16 52 21-68c4-13 18-17 28-9 8 6 8 15 4 28l-17 56 25-67c5-13 19-16 29-8 7 6 7 16 2 29l-23 61 28-51c7-12 20-13 29-5 7 7 6 16-1 29l-37 71c-4 8-8 17-8 27v18c-42 19-94 15-124-16Z"/>
+    <path d="m201 269-41-19c-14-7-17-22-7-31 8-7 17-6 28 0l29 16 20 13"/>
+    <path d="m332 340 20 34-28 21-100-2-16-23 16-30"/>
+  </g>
+  <path d="M219 304c27 15 59 19 93 9m-89-74 46 13m-35-43 44 12m-21-42 32 12m-69 142 16 24 78 1" fill="none" stroke="#c8a464" stroke-width="6" stroke-linecap="round"/>
+  <path d="M404 333c-5-26 0-52 8-73l25-77c4-12 16-17 26-9 8 6 7 17 3 29l-15 47 20-64c4-12 18-17 28-9 8 6 8 15 4 28l-15 51 22-62c5-12 19-15 29-8 7 6 8 16 3 28l-22 57 27-48c6-11 19-13 27-5 8 7 7 17 0 29l-35 68c-5 9-8 17-8 26v20c-42 17-94 13-122-16Z" fill="#273342" stroke="#141d28" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M421 294c24 13 55 16 88 7m-83-63 44 12m-33-41 42 12m-18-39 30 11m-66 128 15 21 76 2" fill="none" stroke="#c8a464" stroke-width="6" stroke-linecap="round"/>
+</svg>

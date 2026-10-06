@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480" role="img" aria-labelledby="title">
+  <title id="title">Compact handlebar pouch product illustration</title>
+  <defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#efeee8"/><stop offset="1" stop-color="#dcdbd4"/></linearGradient><linearGradient id="bag" x2="0" y2="1"><stop stop-color="#384657"/><stop offset="1" stop-color="#1c2734"/></linearGradient></defs>
+  <rect width="640" height="480" fill="url(#bg)"/>
+  <circle cx="324" cy="227" r="168" fill="#c8a464" opacity=".14"/>
+  <ellipse cx="321" cy="386" rx="160" ry="21" fill="#7f8790" opacity=".2"/>
+  <path d="M151 198c83 13 106 70 173 79 61 8 90-51 165-72" fill="none" stroke="#222d39" stroke-width="20" stroke-linecap="round"/>
+  <path d="M263 208v84m94-82v78" stroke="#c8a464" stroke-width="7"/>
+  <rect x="201" y="135" width="242" height="192" rx="28" fill="url(#bag)" stroke="#14202d" stroke-width="9"/>
+  <path d="M223 183h198v108H223Z" fill="#36485c" stroke="#121b28" stroke-width="5"/>
+  <path d="M223 191h198" stroke="#c8a464" stroke-width="7"/>
+  <path d="M242 222h160v59H242Z" fill="#202d3d"/>
+  <path d="M260 246h116" stroke="#b79a66" stroke-width="5" stroke-linecap="round"/>
+  <path d="M279 134v-30h83v30" fill="none" stroke="#18232f" stroke-width="9"/>
+  <path d="M293 327v31m55-31v31" stroke="#141e29" stroke-width="8"/>
+  <circle cx="402" cy="204" r="7" fill="#d3b577"/>
+  <path d="m183 201-38-28m341 3-32 28" stroke="#131d28" stroke-width="9" stroke-linecap="round"/>
+</svg>

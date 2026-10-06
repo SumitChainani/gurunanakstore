@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480" role="img" aria-labelledby="title">
+  <title id="title">Handlebar phone mount product illustration</title>
+  <defs><linearGradient id="bg" x2="0" y2="1"><stop stop-color="#eff0ed"/><stop offset="1" stop-color="#d9dfe0"/></linearGradient></defs>
+  <rect width="640" height="480" fill="url(#bg)"/>
+  <circle cx="317" cy="231" r="168" fill="#fff" opacity=".34"/>
+  <ellipse cx="318" cy="390" rx="155" ry="21" fill="#78828e" opacity=".22"/>
+  <path d="M145 326c83-7 112-28 165-60 53-33 87-58 185-64" fill="none" stroke="#232e3c" stroke-width="23" stroke-linecap="round"/>
+  <path d="M292 269v66m59-96 16 57" stroke="#c8a464" stroke-width="12" stroke-linecap="round"/>
+  <path d="M269 334h111" stroke="#1a2431" stroke-width="20" stroke-linecap="round"/>
+  <rect x="226" y="62" width="183" height="245" rx="22" fill="#151f2c" stroke="#0d141d" stroke-width="8" transform="rotate(-6 317 184)"/>
+  <rect x="241" y="79" width="153" height="209" rx="12" fill="#4c6476" transform="rotate(-6 317 184)"/>
+  <path d="M257 243c38-53 86-70 127-100l6 105c-39 23-78 33-127 34Z" fill="#c8a464" opacity=".88"/>
+  <path d="M257 243c38-53 86-70 127-100" fill="none" stroke="#fff2cf" stroke-width="5" opacity=".8"/>
+  <circle cx="317" cy="296" r="5" fill="#697482"/>
+  <path d="M226 153h-22v68h24m181-68h22v68h-24" fill="none" stroke="#121c28" stroke-width="14" stroke-linejoin="round"/>
+  <path d="M267 64h96" stroke="#c8a464" stroke-width="5" stroke-linecap="round"/>
+  <path d="M281 322v28m62-30v29" stroke="#111a25" stroke-width="9"/>
+</svg>

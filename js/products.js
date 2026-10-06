@@ -1,0 +1,109 @@
+/*
+  Starter product catalogue
+  -------------------------
+  Replace these examples with the products you actually stock before launch.
+  Keep each id unique and update the image path when you add product photos.
+*/
+
+const PRODUCTS = [
+  {
+    id: 1,
+    name: "Everyday Riding Gloves",
+    category: "Rider gear",
+    price: 899,
+    badge: "Rider essential",
+    image: "images/gloves.svg",
+    alt: "Illustration of a pair of black everyday riding gloves",
+    shortDescription: "An easy-to-wear layer for everyday rides.",
+    description: "A straightforward pair of riding gloves for day-to-day use. Check the actual size options and product details with us before ordering.",
+    fitment: "Please confirm available sizes before ordering"
+  },
+  {
+    id: 2,
+    name: "Handlebar Phone Mount",
+    category: "Electronics",
+    price: 799,
+    badge: "Useful upgrade",
+    image: "images/phone-mount.svg",
+    alt: "Illustration of a phone held in a motorcycle handlebar mount",
+    shortDescription: "Keep your phone visible while parked or on a route.",
+    description: "A handlebar-mounted phone holder for riders who want a visible screen position. Check your handlebar measurements and mounting details with us before ordering.",
+    fitment: "Please confirm handlebar compatibility"
+  },
+  {
+    id: 3,
+    name: "All-Weather Bike Cover",
+    category: "Protection",
+    price: 1299,
+    badge: "Daily care",
+    image: "images/bike-cover.svg",
+    alt: "Illustration of a fitted cover protecting a parked motorcycle",
+    shortDescription: "A cover for keeping your parked bike protected.",
+    description: "A practical cover for protecting a parked motorcycle. Check the available size and material details for your bike before ordering.",
+    fitment: "Please confirm cover size for your bike"
+  },
+  {
+    id: 4,
+    name: "Compact Handlebar Pouch",
+    category: "Travel",
+    price: 1199,
+    badge: "Road companion",
+    image: "images/handlebar-bag.svg",
+    alt: "Illustration of a compact motorcycle handlebar travel pouch",
+    shortDescription: "A handy pouch for small ride essentials.",
+    description: "A compact storage pouch for small items you want close at hand. Check dimensions and mounting details with us before ordering.",
+    fitment: "Please confirm mounting compatibility"
+  },
+  {
+    id: 5,
+    name: "USB Bike Charger",
+    category: "Electronics",
+    price: 699,
+    badge: "Useful upgrade",
+    image: "images/usb-charger.svg",
+    alt: "Illustration of a compact USB charger for a motorcycle",
+    shortDescription: "A simple way to keep a device charged on the go.",
+    description: "A compact USB charging accessory for motorcycle use. Check the connector, installation needs, and compatibility with us before ordering.",
+    fitment: "Please confirm installation compatibility"
+  },
+  {
+    id: 6,
+    name: "Disc Brake Lock",
+    category: "Security",
+    price: 1099,
+    badge: "Lock it up",
+    image: "images/disc-lock.svg",
+    alt: "Illustration of a compact disc brake lock for a motorcycle",
+    shortDescription: "A compact lock to add to your parking routine.",
+    description: "A compact disc lock for an added layer in your parking routine. Check the lock dimensions against your bike before ordering.",
+    fitment: "Please confirm disc compatibility"
+  },
+  {
+    id: 7,
+    name: "Reflective Rider Vest",
+    category: "Rider gear",
+    price: 549,
+    badge: "Visibility",
+    image: "images/reflective-vest.svg",
+    alt: "Illustration of a high-visibility reflective rider vest",
+    shortDescription: "A reflective layer for added visibility on rides.",
+    description: "A high-visibility reflective vest for riders. Ask us about available sizes and material details before ordering.",
+    fitment: "Please confirm available sizes before ordering"
+  },
+  {
+    id: 8,
+    name: "Portable Tyre Inflator",
+    category: "Travel",
+    price: 1999,
+    badge: "Ride prepared",
+    image: "images/tyre-inflator.svg",
+    alt: "Illustration of a portable tyre inflator beside a motorcycle wheel",
+    shortDescription: "A compact air inflator to keep in your ride kit.",
+    description: "A portable inflator for a rider’s kit. Check the actual power connection and operating details with us before ordering.",
+    fitment: "Please confirm power connection and compatibility"
+  }
+];
+
+function findProduct(id) {
+  return PRODUCTS.find((product) => product.id === Number(id));
+}

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480" role="img" aria-labelledby="title">
+  <title id="title">Portable tyre inflator product illustration</title>
+  <defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#eff0ed"/><stop offset="1" stop-color="#d9dcd9"/></linearGradient><linearGradient id="unit" x2="1" y2="1"><stop stop-color="#495769"/><stop offset="1" stop-color="#1b2633"/></linearGradient></defs>
+  <rect width="640" height="480" fill="url(#bg)"/>
+  <circle cx="321" cy="226" r="165" fill="#fff" opacity=".32"/>
+  <ellipse cx="322" cy="389" rx="181" ry="19" fill="#77818b" opacity=".2"/>
+  <circle cx="438" cy="263" r="112" fill="#18222e"/>
+  <circle cx="438" cy="263" r="81" fill="#adb2b3"/>
+  <circle cx="438" cy="263" r="53" fill="#687482"/>
+  <circle cx="438" cy="263" r="31" fill="#c3c6c1"/>
+  <circle cx="438" cy="263" r="12" fill="#263342"/>
+  <path d="M111 219c0-15 12-28 27-28h153c17 0 30 13 30 30v115c0 17-13 30-30 30H138c-15 0-27-12-27-27Z" fill="url(#unit)" stroke="#141e2a" stroke-width="8"/>
+  <path d="M151 195v-35h126v35" fill="none" stroke="#202c3a" stroke-width="12"/>
+  <rect x="148" y="221" width="109" height="48" rx="5" fill="#b7c5ba" stroke="#111b27" stroke-width="5"/>
+  <path d="M162 246h21m10-12v24m17-12h30" stroke="#31443d" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="289" cy="251" r="11" fill="#c8a464"/>
+  <path d="M316 260c45-23 64-10 77 5" fill="none" stroke="#1a2430" stroke-width="8"/>
+  <path d="M286 314h28" stroke="#c8a464" stroke-width="7" stroke-linecap="round"/>
+  <path d="M150 293h102" stroke="#dce0e1" stroke-width="3" opacity=".4"/>
+  <path d="M411 142a132 132 0 0 1 105 112" fill="none" stroke="#c8a464" stroke-width="3" opacity=".65"/>
+</svg>

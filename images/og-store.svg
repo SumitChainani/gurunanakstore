@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="title">
+  <title id="title">GurunanakStore bike accessories</title>
+  <rect width="1200" height="630" fill="#151f2e"/>
+  <circle cx="1010" cy="300" r="250" fill="#c8a464" opacity=".13"/>
+  <path d="M0 463 229 363l196 84 186-187 143 155 170-109 276 119v205H0Z" fill="#202d3d"/>
+  <path d="M0 520q263-83 497-18t703-11v139H0Z" fill="#101824"/>
+  <path d="M95 101h94v94H95Z" fill="none" stroke="#c8a464" stroke-width="3"/>
+  <text x="142" y="166" fill="#c8a464" font-family="Georgia, serif" font-size="68" text-anchor="middle">G</text>
+  <text x="229" y="140" fill="#f7f4eb" font-family="Arial, sans-serif" font-size="23" font-weight="700" letter-spacing="7">GURUNANAKSTORE</text>
+  <text x="94" y="310" fill="#f7f4eb" font-family="Arial, sans-serif" font-size="85" font-weight="700">Ride ready.</text>
+  <text x="94" y="404" fill="#c8a464" font-family="Georgia, serif" font-size="71" font-style="italic">Every day.</text>
+  <text x="98" y="478" fill="#cbd2db" font-family="Arial, sans-serif" font-size="24" letter-spacing="2">BIKE ACCESSORIES FOR EVERY RIDE</text>
+</svg>
