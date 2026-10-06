@@ -100,12 +100,18 @@ function removeFromCart(productId) {
   saveCart(cart);
 }
 
+function productGalleryImages(product) {
+  if (Array.isArray(product.gallery) && product.gallery.length) return product.gallery;
+  return [{ src: product.image, alt: product.alt }];
+}
+
 function productCard(product) {
   const productName = escapeHTML(product.name);
+  const cardImage = productGalleryImages(product)[0];
   return [
     '<article class="product-card">',
     '<a class="product-image-link" href="product.html?id=' + product.id + '" aria-label="View ' + productName + '">',
-    '<div class="product-image-wrap"><img src="' + escapeHTML(product.image) + '" alt="' + escapeHTML(product.alt) + '" />',
+    '<div class="product-image-wrap"><img src="' + escapeHTML(cardImage.src) + '" alt="' + escapeHTML(cardImage.alt) + '" />',
     '<span class="product-badge">' + escapeHTML(product.badge) + '</span></div></a>',
     '<div class="product-card-body"><p class="product-category">' + escapeHTML(product.category) + '</p>',
     '<h3><a href="product.html?id=' + product.id + '">' + productName + '</a></h3>',
@@ -177,17 +183,29 @@ function initProductPage() {
 
   const productTitle = product.name + " | GurunanakStore";
   const productDescription = product.name + ": " + product.shortDescription + " Ask GurunanakStore to confirm fit and product details.";
+  const galleryImages = productGalleryImages(product);
+  const firstGalleryImage = galleryImages[0];
   document.title = productTitle;
   updateMeta('meta[name="description"]', productDescription);
   updateMeta('meta[property="og:title"]', productTitle);
   updateMeta('meta[property="og:description"]', productDescription);
-  updateMeta('meta[property="og:image"]', product.image);
-  updateMeta('meta[property="og:image:alt"]', product.alt);
+  updateMeta('meta[property="og:image"]', firstGalleryImage.src);
+  updateMeta('meta[property="og:image:alt"]', firstGalleryImage.alt);
+
+  const galleryThumbnails = galleryImages.length > 1 ? [
+    '<div class="product-gallery-thumbnails" role="group" aria-label="Product photos">',
+    galleryImages.map((image, index) => [
+      '<button class="product-gallery-thumbnail' + (index === 0 ? ' is-active' : '') + '" type="button" data-gallery-image="' + index + '" aria-label="Show photo ' + (index + 1) + ' of ' + escapeHTML(product.name) + '" aria-pressed="' + (index === 0) + '">',
+      '<img src="' + escapeHTML(image.src) + '" alt="" />',
+      '</button>'
+    ].join("")).join(""),
+    '</div>'
+  ].join("") : '';
 
   target.innerHTML = [
     '<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="index.html">Home</a><span aria-hidden="true">/</span><a href="shop.html">Shop</a><span aria-hidden="true">/</span><span>' + escapeHTML(product.name) + '</span></nav>',
     '<section class="product-detail">',
-    '<div class="product-detail-image"><img src="' + escapeHTML(product.image) + '" alt="' + escapeHTML(product.alt) + '" /></div>',
+    '<div class="product-detail-media"><div class="product-detail-image"><img data-product-main-image src="' + escapeHTML(firstGalleryImage.src) + '" alt="' + escapeHTML(firstGalleryImage.alt) + '" /></div>' + galleryThumbnails + '</div>',
     '<div class="product-detail-content"><p class="eyebrow eyebrow-dark">' + escapeHTML(product.category) + ' <span aria-hidden="true">·</span> ' + escapeHTML(product.badge) + '</p>',
     '<h1>' + escapeHTML(product.name) + '</h1><p class="detail-price">' + formatPrice(product.price) + '</p>',
     '<p class="detail-description">' + escapeHTML(product.description) + '</p>',
@@ -203,6 +221,19 @@ function initProductPage() {
 
   const relatedProducts = PRODUCTS.filter((item) => item.id !== product.id).slice(0, 4);
   target.querySelector("[data-related-products]").innerHTML = relatedProducts.map(productCard).join("");
+  target.querySelectorAll("[data-gallery-image]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const selectedImage = galleryImages[Number(button.dataset.galleryImage)];
+      const mainImage = target.querySelector("[data-product-main-image]");
+      mainImage.src = selectedImage.src;
+      mainImage.alt = selectedImage.alt;
+      target.querySelectorAll("[data-gallery-image]").forEach((thumbnail) => {
+        const isSelected = thumbnail === button;
+        thumbnail.classList.toggle("is-active", isSelected);
+        thumbnail.setAttribute("aria-pressed", String(isSelected));
+      });
+    });
+  });
   target.querySelectorAll("[data-detail-quantity]").forEach((button) => {
     button.addEventListener("click", () => {
       const count = target.querySelector("[data-detail-quantity-value]");
@@ -226,7 +257,7 @@ function renderCartPage() {
   }
 
   const itemRows = items.map(({ product, quantity }) => [
-    '<article class="cart-item"><img src="' + escapeHTML(product.image) + '" alt="' + escapeHTML(product.alt) + '" />',
+    '<article class="cart-item"><img src="' + escapeHTML(productGalleryImages(product)[0].src) + '" alt="' + escapeHTML(productGalleryImages(product)[0].alt) + '" />',
     '<div class="cart-item-info"><p class="product-category">' + escapeHTML(product.category) + '</p><h3>' + escapeHTML(product.name) + '</h3><strong>' + formatPrice(product.price) + ' each</strong></div>',
     '<div class="cart-item-actions"><div class="quantity-control" aria-label="' + escapeHTML(product.name) + ' quantity">',
     '<button type="button" data-cart-change="' + product.id + '" data-change="-1" aria-label="Decrease ' + escapeHTML(product.name) + ' quantity">−</button><span>' + quantity + '</span>',

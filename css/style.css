@@ -155,11 +155,17 @@ h1, h2, h3, p { margin-top: 0; }
 .no-products { margin: 20px 0 0; color: var(--muted); font-size: 12px; }
 
 .product-detail { display: grid; gap: 0; padding-top: 22px; }
+.product-detail-media { display: grid; align-content: start; gap: 10px; }
 .breadcrumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; padding: 14px 21px; color: var(--muted); font-size: 9px; line-height: 1.5; }
 .breadcrumbs a { color: #806131; font-weight: 700; }
 .breadcrumbs a:hover { text-decoration: underline; text-underline-offset: 3px; }
-.product-detail-image { min-height: 300px; overflow: hidden; background: #e8e5dd; }
-.product-detail-image img { width: 100%; height: 100%; min-height: 300px; object-fit: cover; }
+.product-detail-image { aspect-ratio: 1 / 1; overflow: hidden; background: #e8e5dd; }
+.product-detail-image img { width: 100%; height: 100%; object-fit: contain; }
+.product-gallery-thumbnails { display: flex; gap: 9px; }
+.product-gallery-thumbnail { width: 68px; height: 68px; flex: 0 0 auto; padding: 3px; border: 1px solid #d8d7d1; background: var(--white); cursor: pointer; transition: border-color .2s ease, transform .2s ease; }
+.product-gallery-thumbnail img { width: 100%; height: 100%; object-fit: cover; }
+.product-gallery-thumbnail:hover { transform: translateY(-2px); }
+.product-gallery-thumbnail.is-active { border: 2px solid var(--gold); }
 .product-detail-content { padding: 29px 22px 34px; background: var(--white); }
 .product-detail-content h1 { margin: 0 0 8px; font-family: var(--display); font-size: 44px; font-weight: 600; line-height: .97; }
 .detail-price { margin: 0 0 17px; color: #886a35; font-size: 18px; font-weight: 700; }
@@ -310,7 +316,7 @@ h1, h2, h3, p { margin-top: 0; }
   .filter-list { flex-wrap: wrap; margin: 0; padding: 0; overflow: visible; }
   .product-detail { grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); max-width: 1180px; margin: 30px auto; padding: 0 32px; }
   .breadcrumbs { max-width: 1180px; margin: 0 auto; padding-right: 32px; padding-left: 32px; }
-  .product-detail-image, .product-detail-image img { min-height: 510px; height: 100%; }
+  .product-detail-image { min-height: 0; }
   .product-detail-content { padding: 43px 6%; }
   .cart-layout { grid-template-columns: minmax(0, 1fr) 270px; align-items: start; gap: 26px; }
   .cart-item { grid-template-columns: 78px minmax(0, 1fr) 145px 83px; align-items: center; gap: 13px; }

@@ -8,15 +8,29 @@
 const PRODUCTS = [
   {
     id: 1,
-    name: "Everyday Riding Gloves",
+    name: "Helmet LED – Dual Beam Smart Light | Premium 360° Visibility & Stylish Design for Night Riding",
     category: "Rider gear",
     price: 899,
-    badge: "Rider essential",
-    image: "images/gloves.svg",
-    alt: "Illustration of a pair of black everyday riding gloves",
-    shortDescription: "An easy-to-wear layer for everyday rides.",
-    description: "A straightforward pair of riding gloves for day-to-day use. Check the actual size options and product details with us before ordering.",
-    fitment: "Please confirm available sizes before ordering"
+    badge: "Night riding",
+    image: "images/helmet-led-front.jpeg",
+    alt: "Front view of a dual-beam helmet LED light beside a motorcycle at dusk",
+    gallery: [
+      {
+        src: "images/helmet-led-front.jpeg",
+        alt: "Front view of the dual-beam helmet LED light beside a motorcycle at dusk"
+      },
+      {
+        src: "images/helmet-led-side.jpeg",
+        alt: "Side view of the black helmet LED light and its clear front cover"
+      },
+      {
+        src: "images/helmet-led-wiring.jpeg",
+        alt: "Back view showing the helmet LED light wiring and connection leads"
+      }
+    ],
+    shortDescription: "A dual-beam helmet LED light for a more visible night-riding setup.",
+    description: "A dual-beam helmet LED light with a bold design for night riding. Ask us to confirm helmet compatibility, installation details, and what is included before ordering.",
+    fitment: "Please confirm helmet compatibility, installation method, and included parts"
   },
   {
     id: 2,
