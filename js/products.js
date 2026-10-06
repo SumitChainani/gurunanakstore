@@ -46,15 +46,33 @@ const PRODUCTS = [
   },
   {
     id: 3,
-    name: "All-Weather Bike Cover",
-    category: "Protection",
+    name: "HJG 3-Lens LED Motorcycle Light – High-Power Triple Beam, Premium Design & Bright Road Visibility for Night Riding",
+    category: "Electronics",
     price: 1299,
-    badge: "Daily care",
-    image: "images/bike-cover.svg",
-    alt: "Illustration of a fitted cover protecting a parked motorcycle",
-    shortDescription: "A cover for keeping your parked bike protected.",
-    description: "A practical cover for protecting a parked motorcycle. Check the available size and material details for your bike before ordering.",
-    fitment: "Please confirm cover size for your bike"
+    badge: "Triple beam",
+    image: "images/hjg-3-lens-front.jpeg",
+    alt: "Front view of an HJG motorcycle light with three illuminated lenses",
+    gallery: [
+      {
+        src: "images/hjg-3-lens-front.jpeg",
+        alt: "Front view showing all three lenses on the HJG motorcycle light"
+      },
+      {
+        src: "images/hjg-3-lens-rear.jpeg",
+        alt: "Rear view of the HJG light showing its casing and wiring"
+      },
+      {
+        src: "images/hjg-3-lens-rear-angle.jpeg",
+        alt: "Angled rear view of the HJG three-lens light and cable"
+      },
+      {
+        src: "images/hjg-3-lens-brand.jpeg",
+        alt: "Rear detail of the HJG light with its HJG-marked casing"
+      }
+    ],
+    shortDescription: "A three-lens HJG motorcycle light with a triple-beam design for night rides.",
+    description: "An HJG motorcycle light with three lenses and a high-power triple-beam design for night riding. Confirm installation requirements, wiring, and compatibility with your bike before ordering.",
+    fitment: "Please confirm bike compatibility, installation requirements, and included parts"
   },
   {
     id: 4,
