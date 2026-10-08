@@ -75,6 +75,32 @@ const PRODUCTS = [
     fitment: "Please confirm bike compatibility, installation requirements, and included parts"
   },
   {
+    id: 10,
+    name: "Premium LED Motorcycle Bike Turn Signal Indicator Light Set with Water-Resistant Housing, Bright Visibility, Durable Wiring, and Universal Mounting for Motorbikes, Scooters and Custom Builds",
+    category: "Electronics",
+    price: 289,
+    badge: "LED indicator set",
+    image: "images/turn-signal-indicator-front.jpg",
+    alt: "Front view of a pair of premium LED motorcycle turn signal indicators with wiring",
+    gallery: [
+      {
+        src: "images/turn-signal-indicator-front.jpg",
+        alt: "Front view of two black LED motorcycle turn signal indicators and their wiring"
+      },
+      {
+        src: "images/turn-signal-indicator-side.jpg",
+        alt: "Side view of a black LED motorcycle indicator with its mounting stem and wire"
+      },
+      {
+        src: "images/turn-signal-indicator-set.jpg",
+        alt: "Back view of the LED indicator set showing both lights, wiring, and connectors"
+      }
+    ],
+    shortDescription: "A bright LED turn signal set with water-resistant housing and durable wiring.",
+    description: "A premium LED motorcycle bike turn signal indicator light set with water-resistant housing, bright visibility, durable wiring, and universal mounting for motorbikes, scooters, and custom builds. Please confirm mounting points and wiring compatibility for your vehicle before ordering.",
+    fitment: "Confirm mounting points and wiring compatibility for your motorbike or scooter before ordering"
+  },
+  {
     id: 9,
     name: "CYT Lumina Pro — a premium LED projector headlight engineered for brighter illumination, focused visibility, durable performance, low power consumption, and safer rides every journey.",
     category: "Electronics",
