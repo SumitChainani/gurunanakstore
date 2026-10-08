@@ -80,13 +80,13 @@ function getCart() {
   }
 }
 
-function saveCart(cart) {
+function saveCart(cart, animateCount) {
   try {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
   } catch (error) {
     showToast("Your browser could not save this cart. You can still send your order on WhatsApp.");
   }
-  updateCartCount();
+  updateCartCount(animateCount);
 }
 
 function cartItems() {
@@ -113,22 +113,45 @@ function phonePePaymentTotal(items) {
   };
 }
 
-function updateCartCount() {
+function updateCartCount(animate) {
   const count = cartItems().reduce((total, item) => total + item.quantity, 0);
   document.querySelectorAll("[data-cart-count]").forEach((element) => {
     element.textContent = count;
     element.hidden = count === 0;
+    if (animate) {
+      window.clearTimeout(element.cartPopTimer);
+      element.classList.remove("cart-count-pop");
+      void element.offsetWidth;
+      element.classList.add("cart-count-pop");
+      element.cartPopTimer = window.setTimeout(() => element.classList.remove("cart-count-pop"), 500);
+    }
   });
 }
 
-function addToCart(productId, quantity) {
+function addToCart(productId, quantity, button) {
   const product = findProduct(productId);
   if (!product) return;
   const cart = getCart();
   const safeQuantity = Math.max(1, Math.floor(Number(quantity) || 1));
   cart[product.id] = (Number(cart[product.id]) || 0) + safeQuantity;
-  saveCart(cart);
-  showToast(product.name + " added to your cart.");
+  saveCart(cart, true);
+  showAddedButtonFeedback(button);
+  const shortName = product.name.length > 42 ? product.name.slice(0, 39).trimEnd() + "…" : product.name;
+  showToast(shortName + " added to your cart.");
+}
+
+function showAddedButtonFeedback(button) {
+  if (!button) return;
+  if (!button.dataset.defaultMarkup) button.dataset.defaultMarkup = button.innerHTML;
+  window.clearTimeout(button.addedFeedbackTimer);
+  button.classList.remove("add-confirmed");
+  void button.offsetWidth;
+  button.classList.add("add-confirmed");
+  button.textContent = button.hasAttribute("data-add-detail") ? "Added to cart ✓" : "Added ✓";
+  button.addedFeedbackTimer = window.setTimeout(() => {
+    button.classList.remove("add-confirmed");
+    button.innerHTML = button.dataset.defaultMarkup;
+  }, 1200);
 }
 
 function changeQuantity(productId, change) {
@@ -290,8 +313,8 @@ function initProductPage() {
       count.textContent = Math.max(1, Number(count.textContent) + Number(button.dataset.detailQuantity));
     });
   });
-  target.querySelector("[data-add-detail]").addEventListener("click", () => {
-    addToCart(product.id, target.querySelector("[data-detail-quantity-value]").textContent);
+  target.querySelector("[data-add-detail]").addEventListener("click", (event) => {
+    addToCart(product.id, target.querySelector("[data-detail-quantity-value]").textContent, event.currentTarget);
   });
   initWhatsAppLinks();
 }
@@ -668,7 +691,7 @@ function initNavigation() {
 
 document.addEventListener("click", (event) => {
   const addButton = event.target.closest("[data-add-product]");
-  if (addButton) addToCart(addButton.dataset.addProduct, 1);
+  if (addButton) addToCart(addButton.dataset.addProduct, 1, addButton);
 });
 
 document.addEventListener("DOMContentLoaded", () => {
