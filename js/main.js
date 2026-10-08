@@ -11,11 +11,8 @@ const STORE_PHONE = "918815960890";
 const PHONEPE_DISCOUNT_PERCENT = 10;
 const CART_STORAGE_KEY = "gurunanakAccessoriesCart";
 const PHONEPE_RETURN_STORAGE_KEY = "gurunanakPhonePePendingOrder";
-const UPI_PENDING_ORDER_KEY = "gurunanakPendingUPIOrder";
 const PRODUCT_REVIEWS_STORAGE_KEY = "gurunanakProductReviews";
 const PHONEPE_API_BASE_URL = String(window.GURUNANAK_PHONEPE_API_URL || "").replace(/\/+$/, "");
-const STORE_UPI_ID = String(window.GURUNANAK_UPI_ID || "").trim();
-const STORE_UPI_PAYEE_NAME = String(window.GURUNANAK_UPI_PAYEE_NAME || STORE_NAME).trim();
 const MOTION_REVEAL_SELECTOR = ".section-heading, .product-card, .brand-promise, .benefits-section article, .service-strip > *, .reviews-section > div, .about-copy > div, .values-section article, .about-cta, .contact-card, .contact-form, .product-detail-media, .product-detail-content, .product-reviews-header, .product-review-card, .review-form, .cart-item, .order-summary, .checkout-intro, .checkout-form, .payment-result";
 let motionRevealObserver = null;
 
@@ -35,35 +32,6 @@ function escapeHTML(value) {
     "\"": "&quot;",
     "'": "&#39;"
   })[character]);
-}
-
-// Build a standard UPI payment link. The payee and amount are sent to the UPI
-// app; this direct transfer does not provide automatic payment verification.
-function buildUPIPaymentUri(upiId, payeeName, amountRupees, orderReference) {
-  const parameters = new URLSearchParams({
-    pa: upiId,
-    pn: payeeName,
-    tr: orderReference,
-    tn: STORE_NAME + " order " + orderReference,
-    am: Number(amountRupees).toFixed(2),
-    cu: "INR"
-  });
-  return "upi://pay?" + parameters.toString();
-}
-
-function getPendingUPIOrder(amountRupees) {
-  try {
-    const pending = JSON.parse(sessionStorage.getItem(UPI_PENDING_ORDER_KEY) || "null");
-    const age = pending && Date.now() - Number(pending.createdAt);
-    const isRecent = pending && age >= 0 && age < 24 * 60 * 60 * 1000;
-    if (isRecent && pending.amountRupees === amountRupees && /^GS\d{10}$/.test(pending.orderReference)) {
-      return pending;
-    }
-    sessionStorage.removeItem(UPI_PENDING_ORDER_KEY);
-  } catch (error) {
-    // Browser storage is optional; a fresh order reference is enough.
-  }
-  return null;
 }
 
 function getCart() {
@@ -504,32 +472,27 @@ function renderCheckoutPage() {
 
   const shortOrder = items.map((item) => item.quantity + " × " + item.product.name).join(", ");
   const paymentTotal = phonePePaymentTotal(items);
-  const pendingUPIOrder = getPendingUPIOrder(paymentTotal.payable);
-  const orderReference = pendingUPIOrder ? pendingUPIOrder.orderReference : "GS" + Date.now().toString().slice(-10);
+  const orderReference = "GS" + Date.now().toString().slice(-10);
   const summaryRows = items.map(({ product, quantity }) => '<div class="summary-line"><span>' + quantity + ' × ' + escapeHTML(product.name) + '</span><strong>' + formatPrice(product.price * quantity) + '</strong></div>').join("");
   target.innerHTML = [
     '<section class="checkout-page section"><div class="checkout-intro"><p class="eyebrow eyebrow-dark">Almost there</p><h1>Let’s get you<br />ready to ride.</h1>',
-    '<p>Share your delivery details, then continue to PhonePe for secure payment. You can also send the order to us on WhatsApp.</p>',
+    '<p>Share your delivery details, scan the PhonePe QR below, then send your order to us on WhatsApp for manual confirmation.</p>',
     '<p><a class="text-link text-link-dark" href="cart.html">← Back to your cart</a></p>',
     '<aside class="order-summary checkout-summary"><p class="eyebrow eyebrow-dark">Your order</p>' + summaryRows,
     '<div class="summary-line"><span>Delivery</span><strong>Confirm with support first</strong></div>',
-    '<div class="summary-total"><span>Items subtotal</span><strong>' + formatPrice(paymentTotal.subtotal) + '</strong></div>',
-    '<p class="summary-note">WhatsApp orders use the regular price. Pay through the PhonePe button below to get 10% off every product.</p></aside></div>',
+    '<div class="summary-total"><span>Items before PhonePe discount</span><strong>' + formatPrice(paymentTotal.subtotal) + '</strong></div>',
+    '<p class="summary-note">The QR amount below includes the 10% PhonePe discount on items. Delivery charges are confirmed separately.</p></aside></div>',
     '<form class="checkout-form" data-checkout-form>',
     '<div class="form-grid"><label>Full name<input name="name" autocomplete="name" placeholder="Your full name" required /></label>',
     '<label>Phone number<input name="phone" autocomplete="tel" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" placeholder="10-digit mobile number" required /></label></div>',
     '<label>Delivery address<textarea name="address" autocomplete="street-address" placeholder="House number, street, area, city, state and PIN code" required></textarea></label>',
-    '<section class="phonepe-payment-panel" aria-labelledby="phonepe-heading"><p class="eyebrow eyebrow-dark">UPI PAYMENT</p><h2 id="phonepe-heading"><span class="phonepe-mark" aria-hidden="true">पे</span> Pay with PhonePe</h2>',
-    '<p>Get 10% off every product when you pay through this PhonePe button. On your phone, choose PhonePe if an app chooser appears, then check the payee and discounted amount before approving.</p>',
-    '<div class="phonepe-discount-breakdown"><div><span>Items subtotal</span><strong>' + formatPrice(paymentTotal.subtotal) + '</strong></div><div><span>PhonePe discount (' + PHONEPE_DISCOUNT_PERCENT + '%)</span><strong>−' + formatExactPrice(paymentTotal.discount) + '</strong></div><div class="phonepe-payable"><span>Pay with PhonePe</span><strong>' + formatExactPrice(paymentTotal.payable) + '</strong></div></div>',
+    '<section class="phonepe-payment-panel" aria-labelledby="phonepe-heading"><p class="eyebrow eyebrow-dark">UPI PAYMENT</p><h2 id="phonepe-heading"><span class="phonepe-mark" aria-hidden="true">पे</span> PhonePe QR</h2>',
+    '<p>Scan the QR and enter the exact amount shown below. The 10% PhonePe discount is already included.</p>',
     '<input type="hidden" name="orderReference" value="' + orderReference + '" />',
-    '<button class="button button-phonepe button-wide" type="button" data-upi-pay' + (STORE_UPI_ID ? '' : ' disabled') + '>Pay ' + formatExactPrice(paymentTotal.payable) + ' with PhonePe <span aria-hidden="true">↗</span></button>',
-    '<p class="payment-status-note" data-upi-message role="status" aria-live="polite">Payee: ' + escapeHTML(STORE_UPI_PAYEE_NAME) + ' · UPI ID: ' + escapeHTML(STORE_UPI_ID || 'Not configured') + '</p>',
     '<div class="manual-qr-panel"><p class="eyebrow eyebrow-dark">SCAN FROM ANOTHER DEVICE</p><h3>PhonePe Business QR</h3>',
     '<img class="phonepe-merchant-qr" src="images/phonepe-merchant-qr.jpeg" alt="GurunanakStore PhonePe merchant QR code for manual UPI payment" width="853" height="1600" loading="lazy" />',
     '<p class="manual-qr-amount">PhonePe amount after 10% discount: <strong data-manual-qr-total>' + formatExactPrice(paymentTotal.payable) + '</strong></p>',
-    '<p class="manual-qr-warning">This photo is a fixed QR, so it cannot fill in the amount automatically. Enter the discounted amount shown above when you scan it. The button above fills in the amount for you. Delivery is separate and must be confirmed. Direct UPI payments are checked manually.</p>',
-    '<a class="text-link text-link-dark" href="images/phonepe-merchant-qr.jpeg" download="gurunanakstore-phonepe-qr.jpeg">Save QR image to another device</a></div></section>',
+    '<p class="manual-qr-warning">This is a fixed QR, so it cannot set the amount automatically. Enter the discounted amount shown above when scanning. Delivery is separate and must be confirmed. Direct UPI payments are checked manually.</p></div></section>',
     '<label class="payment-reference-label">PhonePe transaction reference (optional, if you already paid)<input name="paymentReference" maxlength="50" placeholder="Enter the transaction ID shown in PhonePe" /></label>',
     '<button class="button button-outline button-wide whatsapp-order-button" type="submit">Send order by WhatsApp <span aria-hidden="true">↗</span></button>',
     '<p class="order-confirmation-note">WhatsApp orders are for manual confirmation and do not count as paid. Never share your UPI PIN or OTP with anyone.</p>',
@@ -539,49 +502,6 @@ function renderCheckoutPage() {
   observeMotionTargets(target);
 
   target.querySelector("[data-checkout-form]").addEventListener("submit", submitOrder);
-  target.querySelector("[data-upi-pay]").addEventListener("click", startUPIPayment);
-}
-
-function startUPIPayment(event) {
-  const button = event.currentTarget;
-  const target = document.querySelector("[data-checkout-page]");
-  const form = target && target.querySelector("[data-checkout-form]");
-  if (!STORE_UPI_ID || !form || !form.reportValidity()) return;
-
-  const items = cartItems();
-  if (!items.length) {
-    showToast("Your cart is empty.");
-    renderCheckoutPage();
-    return;
-  }
-
-  const formData = new FormData(form);
-  const orderReference = String(formData.get("orderReference") || "GS" + Date.now().toString().slice(-10));
-  const amount = phonePePaymentTotal(items).payable;
-  const paymentUri = buildUPIPaymentUri(STORE_UPI_ID, STORE_UPI_PAYEE_NAME, amount, orderReference);
-  const upiOrder = {
-    orderReference,
-    amountRupees: amount,
-    createdAt: Date.now()
-  };
-
-  try {
-    sessionStorage.setItem(UPI_PENDING_ORDER_KEY, JSON.stringify(upiOrder));
-  } catch (error) {
-    // Keep the payment option usable when browser storage is disabled.
-  }
-
-  const status = target.querySelector("[data-upi-message]");
-  button.disabled = true;
-  button.textContent = "Opening your UPI app…";
-  status.textContent = "Order " + orderReference + " · Amount " + formatExactPrice(amount) + ". If prompted, select PhonePe. Check the payee name and amount in the app before paying.";
-  window.location.assign(paymentUri);
-
-  window.setTimeout(() => {
-    button.disabled = false;
-    button.innerHTML = 'Pay ' + formatExactPrice(amount) + ' with PhonePe <span aria-hidden="true">↗</span>';
-    status.textContent = "If an app did not open, scan the QR image from another device and enter " + formatExactPrice(amount) + ". Send your order and UPI transaction reference to us on WhatsApp. UPI payments are checked manually.";
-  }, 1800);
 }
 
 async function startPhonePeCheckout(event) {
@@ -754,8 +674,8 @@ function submitOrder(event) {
   const itemLines = items.map(({ product, quantity }) => "- " + product.name + " x " + quantity + " — " + formatPrice(product.price * quantity)).join("\n");
   const message = "Namaste " + STORE_NAME + ", I would like to place an order.\n\n" +
     "Order reference: " + orderNumber + "\n\n" + itemLines + "\n\n" +
-    "Items total: " + formatPrice(cartTotal()) + "\n" +
-    "PhonePe offer: 10% off every product when paid through the PhonePe button (discounted items total " + formatExactPrice(phonePePaymentTotal(items).payable) + "). It does not apply to a regular WhatsApp order.\n" +
+    "Items total before PhonePe discount: " + formatPrice(cartTotal()) + "\n" +
+    "PhonePe QR amount after 10% discount (if paying by QR): " + formatExactPrice(phonePePaymentTotal(items).payable) + "\n" +
     "Delivery: Please confirm the availability and charge for my address.\n" +
     "Payment: Please verify any PhonePe / UPI transfer manually before marking this order paid.\n" +
     "PhonePe transaction reference (if already paid): " + (details.paymentReference.trim() || "Not provided") + "\n\n" +
@@ -763,11 +683,6 @@ function submitOrder(event) {
     "Phone: " + details.phone + "\n" +
     "Delivery address: " + details.address + "\n\n" +
     "Please confirm stock, fit, delivery charge, and final total before payment.";
-  try {
-    sessionStorage.removeItem(UPI_PENDING_ORDER_KEY);
-  } catch (error) {
-    // The WhatsApp order still works when browser storage is unavailable.
-  }
   openWhatsApp(message);
 }
 
