@@ -612,6 +612,7 @@ function renderPhonePeReturnPage(target) {
 
   target.innerHTML = [
     '<section class="payment-result section"><p class="eyebrow eyebrow-dark">PHONEPE CHECKOUT</p>',
+    '<div class="payment-result-icon" data-phonepe-result-icon data-state="checking" aria-hidden="true"><span>…</span></div>',
     '<h1 data-phonepe-result-title>Checking your payment.</h1>',
     '<p class="payment-result-copy" data-phonepe-result-message>We’re asking PhonePe to confirm the latest status. Please keep this page open.</p>',
     '<p class="payment-reference">Order reference: <code>' + escapeHTML(merchantOrderId) + '</code></p>',
@@ -623,6 +624,7 @@ function renderPhonePeReturnPage(target) {
 
   const title = target.querySelector("[data-phonepe-result-title]");
   const message = target.querySelector("[data-phonepe-result-message]");
+  const statusIcon = target.querySelector("[data-phonepe-result-icon]");
   const retryButton = target.querySelector("[data-phonepe-check-status]");
   const whatsappButton = target.querySelector("[data-phonepe-whatsapp]");
   let orderContext = null;
@@ -634,12 +636,16 @@ function renderPhonePeReturnPage(target) {
 
   async function checkStatus() {
     if (!PHONEPE_API_BASE_URL) {
+      statusIcon.dataset.state = "pending";
+      statusIcon.innerHTML = "<span>…</span>";
       title.textContent = "Payment status needs checking.";
       message.textContent = "The PhonePe status service is not configured yet. Contact GurunanakStore and share the order reference above before paying again.";
       return;
     }
 
     retryButton.disabled = true;
+    statusIcon.dataset.state = "checking";
+    statusIcon.innerHTML = "<span>…</span>";
     message.textContent = "Checking with PhonePe…";
     try {
       const response = await fetch(PHONEPE_API_BASE_URL + "/api/payments/status?merchantOrderId=" + encodeURIComponent(merchantOrderId));
@@ -648,7 +654,9 @@ function renderPhonePeReturnPage(target) {
 
       const matchingOrder = orderContext && orderContext.merchantOrderId === merchantOrderId;
       if (result.state === "COMPLETED" && matchingOrder && Number(result.amount) === Number(orderContext.amountPaise)) {
-        title.textContent = "Payment confirmed.";
+        statusIcon.dataset.state = "confirmed";
+        statusIcon.innerHTML = "<span>✓</span>";
+        title.textContent = "Payment confirmed!";
         message.textContent = "PhonePe confirmed this payment. Send the delivery details below so GurunanakStore can prepare your order.";
         const itemLines = orderContext.items.map((item) => "- " + item.name + " x " + item.quantity + " — " + formatPrice(item.price * item.quantity)).join("\n");
         const orderSubtotal = orderContext.items.reduce((total, item) => total + item.price * item.quantity, 0);
@@ -667,19 +675,29 @@ function renderPhonePeReturnPage(target) {
         localStorage.removeItem(CART_STORAGE_KEY);
         updateCartCount();
       } else if (result.state === "COMPLETED") {
+        statusIcon.dataset.state = "pending";
+        statusIcon.innerHTML = "<span>…</span>";
         title.textContent = "PhonePe reports payment completed.";
         message.textContent = "This browser does not have the matching order details. Do not pay again. Contact GurunanakStore and share the reference above.";
       } else if (result.state === "PENDING") {
+        statusIcon.dataset.state = "pending";
+        statusIcon.innerHTML = "<span>…</span>";
         title.textContent = "Payment is still pending.";
         message.textContent = "PhonePe has not confirmed completion yet. Wait a little, then check the status again. Do not pay twice while it is pending.";
       } else if (result.state === "FAILED") {
+        statusIcon.dataset.state = "failed";
+        statusIcon.innerHTML = "<span>×</span>";
         title.textContent = "Payment was not completed.";
         message.textContent = "PhonePe reports this payment failed. Return to your cart to try again, or contact us on WhatsApp.";
       } else {
+        statusIcon.dataset.state = "pending";
+        statusIcon.innerHTML = "<span>…</span>";
         title.textContent = "Payment status needs checking.";
         message.textContent = "PhonePe returned status “" + String(result.state || "unknown") + "”. Contact GurunanakStore before trying to pay again.";
       }
     } catch (error) {
+      statusIcon.dataset.state = "pending";
+      statusIcon.innerHTML = "<span>…</span>";
       title.textContent = "We couldn’t check the payment yet.";
       message.textContent = (error.message || "Please wait a moment and try again.") + " Don’t retry payment until you know whether the first attempt completed.";
     } finally {
@@ -700,14 +718,41 @@ function openWhatsApp(message) {
   const newWindow = window.open(whatsappUrl(message), "_blank");
   if (newWindow) {
     newWindow.opener = null;
+    return true;
   } else {
     showToast("Allow pop-ups to open WhatsApp, then try again.");
+    return false;
   }
+}
+
+function renderManualOrderStatus(target, orderNumber, amount, paymentReference, whatsappOpened, message) {
+  const referenceWasEntered = Boolean(paymentReference.trim());
+  target.innerHTML = [
+    '<section class="payment-result section payment-result--manual" aria-live="polite">',
+    '<p class="eyebrow eyebrow-dark">ORDER DETAILS</p>',
+    '<div class="payment-result-icon" data-state="prepared" aria-hidden="true"><span>✓</span></div>',
+    '<h1>' + (referenceWasEntered ? 'Order details are ready.' : 'Finish placing your order.') + '</h1>',
+    '<p class="payment-result-copy">' + (referenceWasEntered
+      ? 'Your transaction reference is included in the prepared WhatsApp message. Send that message so we can check the payment in PhonePe Business.'
+      : 'Your order details are ready in WhatsApp. Send the message to place the order, then complete payment and share its transaction reference.') + '</p>',
+    '<p class="payment-reference">Order reference: <code>' + escapeHTML(orderNumber) + '</code></p>',
+    '<div class="manual-payment-status"><strong>Payment status: awaiting manual verification</strong><span>Entering a transaction ID does not verify a payment. We will mark it paid only after confirming it in PhonePe Business.</span></div>',
+    '<p class="payment-result-copy payment-result-amount">PhonePe QR amount after 10% discount: <strong>' + formatExactPrice(amount) + '</strong></p>',
+    '<p class="payment-result-copy">' + (whatsappOpened
+      ? 'WhatsApp opened in another tab. Review the details and tap Send there to share your order.'
+      : 'WhatsApp did not open automatically. Use the button below to send your order details.') + '</p>',
+    '<a class="button button-gold" href="' + whatsappUrl(message) + '" target="_blank" rel="noopener noreferrer">Open order message in WhatsApp <span aria-hidden="true">↗</span></a>',
+    '<a class="text-link text-link-dark" href="shop.html">Continue shopping <span aria-hidden="true">→</span></a>',
+    '</section>'
+  ].join("");
+  observeMotionTargets(target);
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function submitOrder(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  const target = document.querySelector("[data-checkout-page]");
   if (!form.reportValidity()) return;
   const items = cartItems();
   if (!items.length) {
@@ -729,7 +774,8 @@ function submitOrder(event) {
     "Phone: " + details.phone + "\n" +
     "Delivery address: " + details.address + "\n\n" +
     "Please confirm stock, fit, delivery charge, and final total before payment.";
-  openWhatsApp(message);
+  const whatsappOpened = openWhatsApp(message);
+  renderManualOrderStatus(target, orderNumber, phonePePaymentTotal(items).payable, details.paymentReference, whatsappOpened, message);
 }
 
 function initContactForm() {
