@@ -3,7 +3,7 @@
   Set this to your deployed HTTPS backend URL after setup.
   It is public; never put passwords or PhonePe Client Secrets in this file.
 */
-window.GURUNANAK_API_URL = "";
+window.GURUNANAK_API_URL ="https://gurunanakstore-production.up.railway.app";
 window.GURUNANAK_PHONEPE_API_URL = window.GURUNANAK_API_URL;
 
 /*
