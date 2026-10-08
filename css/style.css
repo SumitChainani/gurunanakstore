@@ -224,6 +224,11 @@ h1, h2, h3, p { margin-top: 0; }
 .phonepe-payment-panel .eyebrow { margin: 0; }
 .phonepe-payment-panel h2 { display: flex; align-items: center; gap: 10px; margin: 0; color: var(--navy); font-family: var(--display); font-size: 27px; font-weight: 600; }
 .phonepe-payment-panel > p:not(.eyebrow) { margin: 0; color: #59616b; font-size: 10px; line-height: 1.7; }
+.phonepe-discount-breakdown { display: grid; gap: 8px; padding: 13px; border: 1px solid #e5dcef; background: #fff; color: #59616b; font-size: 11px; }
+.phonepe-discount-breakdown > div { display: flex; justify-content: space-between; gap: 12px; }
+.phonepe-discount-breakdown strong { color: var(--navy); text-align: right; }
+.phonepe-discount-breakdown .phonepe-payable { padding-top: 8px; border-top: 1px solid #e5dcef; color: var(--navy); font-weight: 700; }
+.phonepe-discount-breakdown .phonepe-payable strong { color: #5f259f; font-size: 15px; }
 .phonepe-mark { width: 33px; height: 33px; display: inline-grid; flex: 0 0 auto; place-items: center; border-radius: 50%; background: #5f259f; color: #fff; font-family: var(--sans); font-size: 17px; font-weight: 700; }
 .button-phonepe { background: #5f259f; color: #fff; }
 .button-phonepe:hover:not(:disabled) { background: #4b187e; box-shadow: 0 7px 20px rgba(95,37,159,.2); }

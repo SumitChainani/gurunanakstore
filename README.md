@@ -8,9 +8,9 @@ Open index.html in a web browser. Use Shop to browse items, Add to put an item i
 
 ## PhonePe and UPI payments
 
-The checkout uses the public merchant UPI ID and opens a standard UPI payment link with the cart's item subtotal filled in. On a phone, the link opens an available UPI app or app chooser; the customer can choose PhonePe. The customer should check the payee name and amount in the app before approving.
+The checkout applies a 10% discount to every product when the customer pays using the PhonePe button. It opens a standard UPI payment link with the discounted item total filled in. On a phone, the link opens an available UPI app or app chooser; choose PhonePe and check the payee and amount before approving. WhatsApp orders stay at the regular listed prices.
 
-The image at `images/phonepe-merchant-qr.jpeg` is also shown as a manual scan option. It is a fixed QR, so its amount does not change with the cart. The payment button is the amount-filled option. Delivery charges are separate and must be confirmed before payment.
+The image at `images/phonepe-merchant-qr.jpeg` is also shown as a manual scan option. It is a fixed QR, so it cannot fill in the cart amount; enter the discounted amount displayed at checkout. The payment button fills in the amount for the customer. Delivery charges are separate and must be confirmed before payment.
 
 Direct UPI payments do not notify this static website when payment completes. Check the transfer in PhonePe Business before marking the order paid; the WhatsApp form lets the customer include the UPI transaction reference. A WhatsApp message alone is not proof of payment.
 

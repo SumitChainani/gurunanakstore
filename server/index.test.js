@@ -3,11 +3,12 @@ const assert = require("node:assert/strict");
 const { getOrderTotal } = require("./index");
 
 test("calculates the PhonePe amount in paise using server-side product prices", () => {
-  assert.equal(getOrderTotal([{ productId: 1, quantity: 1 }]), 89900);
+  assert.equal(getOrderTotal([{ productId: 1, quantity: 1 }]), 80910);
   assert.equal(getOrderTotal([
     { productId: 1, quantity: 2 },
     { productId: 3, quantity: 1 }
-  ]), 309700);
+  ]), 278730);
+  assert.equal(getOrderTotal([{ productId: 7, quantity: 1 }]), 49410);
 });
 
 test("rejects product IDs that are not in the server catalogue", () => {

@@ -8,6 +8,7 @@
 
 const STORE_NAME = "GurunanakStore";
 const STORE_PHONE = "918815960890";
+const PHONEPE_DISCOUNT_PERCENT = 10;
 const CART_STORAGE_KEY = "gurunanakAccessoriesCart";
 const PHONEPE_RETURN_STORAGE_KEY = "gurunanakPhonePePendingOrder";
 const UPI_PENDING_ORDER_KEY = "gurunanakPendingUPIOrder";
@@ -17,6 +18,10 @@ const STORE_UPI_PAYEE_NAME = String(window.GURUNANAK_UPI_PAYEE_NAME || STORE_NAM
 
 function formatPrice(amount) {
   return "₹" + Number(amount).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+}
+
+function formatExactPrice(amount) {
+  return "₹" + Number(amount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function escapeHTML(value) {
@@ -94,6 +99,18 @@ function cartItems() {
 
 function cartTotal() {
   return cartItems().reduce((total, item) => total + item.product.price * item.quantity, 0);
+}
+
+// Keep regular cart prices unchanged; this breakdown is used only when paying
+// through the PhonePe checkout option. Totals are calculated in paise.
+function phonePePaymentTotal(items) {
+  const subtotalPaise = items.reduce((total, item) => total + item.product.price * item.quantity * 100, 0);
+  const payablePaise = Math.round(subtotalPaise * (100 - PHONEPE_DISCOUNT_PERCENT) / 100);
+  return {
+    subtotal: subtotalPaise / 100,
+    discount: (subtotalPaise - payablePaise) / 100,
+    payable: payablePaise / 100
+  };
 }
 
 function updateCartCount() {
@@ -336,7 +353,8 @@ function renderCheckoutPage() {
   }
 
   const shortOrder = items.map((item) => item.quantity + " × " + item.product.name).join(", ");
-  const pendingUPIOrder = getPendingUPIOrder(cartTotal());
+  const paymentTotal = phonePePaymentTotal(items);
+  const pendingUPIOrder = getPendingUPIOrder(paymentTotal.payable);
   const orderReference = pendingUPIOrder ? pendingUPIOrder.orderReference : "GS" + Date.now().toString().slice(-10);
   const summaryRows = items.map(({ product, quantity }) => '<div class="summary-line"><span>' + quantity + ' × ' + escapeHTML(product.name) + '</span><strong>' + formatPrice(product.price * quantity) + '</strong></div>').join("");
   target.innerHTML = [
@@ -345,21 +363,22 @@ function renderCheckoutPage() {
     '<p><a class="text-link text-link-dark" href="cart.html">← Back to your cart</a></p>',
     '<aside class="order-summary checkout-summary"><p class="eyebrow eyebrow-dark">Your order</p>' + summaryRows,
     '<div class="summary-line"><span>Delivery</span><strong>Confirm with support first</strong></div>',
-    '<div class="summary-total"><span>Items subtotal</span><strong>' + formatPrice(cartTotal()) + '</strong></div>',
-    '<p class="summary-note">PhonePe checkout charges the item subtotal shown here. Ask us to confirm any delivery charge and the final amount before paying.</p></aside></div>',
+    '<div class="summary-total"><span>Items subtotal</span><strong>' + formatPrice(paymentTotal.subtotal) + '</strong></div>',
+    '<p class="summary-note">WhatsApp orders use the regular price. Pay through the PhonePe button below to get 10% off every product.</p></aside></div>',
     '<form class="checkout-form" data-checkout-form>',
     '<div class="form-grid"><label>Full name<input name="name" autocomplete="name" placeholder="Your full name" required /></label>',
     '<label>Phone number<input name="phone" autocomplete="tel" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" placeholder="10-digit mobile number" required /></label></div>',
     '<label>Delivery address<textarea name="address" autocomplete="street-address" placeholder="House number, street, area, city, state and PIN code" required></textarea></label>',
     '<section class="phonepe-payment-panel" aria-labelledby="phonepe-heading"><p class="eyebrow eyebrow-dark">UPI PAYMENT</p><h2 id="phonepe-heading"><span class="phonepe-mark" aria-hidden="true">पे</span> Pay with PhonePe</h2>',
-    '<p>On a phone, tap below to open an available UPI app. The item subtotal will be filled in for this order. Choose PhonePe if it appears, then check the payee and amount before you approve payment.</p>',
+    '<p>Get 10% off every product when you pay through this PhonePe button. On your phone, choose PhonePe if an app chooser appears, then check the payee and discounted amount before approving.</p>',
+    '<div class="phonepe-discount-breakdown"><div><span>Items subtotal</span><strong>' + formatPrice(paymentTotal.subtotal) + '</strong></div><div><span>PhonePe discount (' + PHONEPE_DISCOUNT_PERCENT + '%)</span><strong>−' + formatExactPrice(paymentTotal.discount) + '</strong></div><div class="phonepe-payable"><span>Pay with PhonePe</span><strong>' + formatExactPrice(paymentTotal.payable) + '</strong></div></div>',
     '<input type="hidden" name="orderReference" value="' + orderReference + '" />',
-    '<button class="button button-phonepe button-wide" type="button" data-upi-pay' + (STORE_UPI_ID ? '' : ' disabled') + '>Pay ' + formatPrice(cartTotal()) + ' with PhonePe / UPI <span aria-hidden="true">↗</span></button>',
+    '<button class="button button-phonepe button-wide" type="button" data-upi-pay' + (STORE_UPI_ID ? '' : ' disabled') + '>Pay ' + formatExactPrice(paymentTotal.payable) + ' with PhonePe <span aria-hidden="true">↗</span></button>',
     '<p class="payment-status-note" data-upi-message role="status" aria-live="polite">Payee: ' + escapeHTML(STORE_UPI_PAYEE_NAME) + ' · UPI ID: ' + escapeHTML(STORE_UPI_ID || 'Not configured') + '</p>',
     '<div class="manual-qr-panel"><p class="eyebrow eyebrow-dark">SCAN FROM ANOTHER DEVICE</p><h3>PhonePe Business QR</h3>',
     '<img class="phonepe-merchant-qr" src="images/phonepe-merchant-qr.jpeg" alt="GurunanakStore PhonePe merchant QR code for manual UPI payment" width="853" height="1600" loading="lazy" />',
-    '<p class="manual-qr-amount">Cart items subtotal: <strong data-manual-qr-total>' + formatPrice(cartTotal()) + '</strong></p>',
-    '<p class="manual-qr-warning">This photo is a fixed QR, so scanning it will not fill in the cart amount. For the amount-filled option, use the button above. Confirm any delivery charge first. Payments made in the UPI app are not automatically verified by this website.</p>',
+    '<p class="manual-qr-amount">PhonePe amount after 10% discount: <strong data-manual-qr-total>' + formatExactPrice(paymentTotal.payable) + '</strong></p>',
+    '<p class="manual-qr-warning">This photo is a fixed QR, so it cannot fill in the amount automatically. Enter the discounted amount shown above when you scan it. The button above fills in the amount for you. Delivery is separate and must be confirmed. Direct UPI payments are checked manually.</p>',
     '<a class="text-link text-link-dark" href="images/phonepe-merchant-qr.jpeg" download="gurunanakstore-phonepe-qr.jpeg">Save QR image to another device</a></div></section>',
     '<label class="payment-reference-label">PhonePe transaction reference (optional, if you already paid)<input name="paymentReference" maxlength="50" placeholder="Enter the transaction ID shown in PhonePe" /></label>',
     '<button class="button button-outline button-wide whatsapp-order-button" type="submit">Send order by WhatsApp <span aria-hidden="true">↗</span></button>',
@@ -386,7 +405,7 @@ function startUPIPayment(event) {
 
   const formData = new FormData(form);
   const orderReference = String(formData.get("orderReference") || "GS" + Date.now().toString().slice(-10));
-  const amount = cartTotal();
+  const amount = phonePePaymentTotal(items).payable;
   const paymentUri = buildUPIPaymentUri(STORE_UPI_ID, STORE_UPI_PAYEE_NAME, amount, orderReference);
   const upiOrder = {
     orderReference,
@@ -403,13 +422,13 @@ function startUPIPayment(event) {
   const status = target.querySelector("[data-upi-message]");
   button.disabled = true;
   button.textContent = "Opening your UPI app…";
-  status.textContent = "Order " + orderReference + " · Amount " + formatPrice(amount) + ". If prompted, select PhonePe. Check the payee name and amount in the app before paying.";
+  status.textContent = "Order " + orderReference + " · Amount " + formatExactPrice(amount) + ". If prompted, select PhonePe. Check the payee name and amount in the app before paying.";
   window.location.assign(paymentUri);
 
   window.setTimeout(() => {
     button.disabled = false;
-    button.innerHTML = 'Pay ' + formatPrice(amount) + ' with PhonePe / UPI <span aria-hidden="true">↗</span>';
-    status.textContent = "If an app did not open, use the QR image below from another device. Send your order and UPI transaction reference to us on WhatsApp. UPI payments are checked manually.";
+    button.innerHTML = 'Pay ' + formatExactPrice(amount) + ' with PhonePe <span aria-hidden="true">↗</span>';
+    status.textContent = "If an app did not open, scan the QR image from another device and enter " + formatExactPrice(amount) + ". Send your order and UPI transaction reference to us on WhatsApp. UPI payments are checked manually.";
   }, 1800);
 }
 
@@ -514,9 +533,13 @@ function renderPhonePeReturnPage(target) {
         title.textContent = "Payment confirmed.";
         message.textContent = "PhonePe confirmed this payment. Send the delivery details below so GurunanakStore can prepare your order.";
         const itemLines = orderContext.items.map((item) => "- " + item.name + " x " + item.quantity + " — " + formatPrice(item.price * item.quantity)).join("\n");
+        const orderSubtotal = orderContext.items.reduce((total, item) => total + item.price * item.quantity, 0);
+        const orderDiscount = orderSubtotal - orderContext.amountPaise / 100;
         const orderMessage = "Namaste " + STORE_NAME + ", my PhonePe payment is confirmed.\n\n" +
           "Order reference: " + merchantOrderId + "\n" + itemLines + "\n\n" +
-          "Items total: " + formatPrice(orderContext.amountPaise / 100) + "\n" +
+          "Items subtotal: " + formatPrice(orderSubtotal) + "\n" +
+          "PhonePe discount (10%): −" + formatExactPrice(orderDiscount) + "\n" +
+          "Paid through PhonePe: " + formatExactPrice(orderContext.amountPaise / 100) + "\n" +
           "Name: " + orderContext.customer.name + "\n" +
           "Phone: " + orderContext.customer.phone + "\n" +
           "Delivery address: " + orderContext.customer.address + "\n\n" +
@@ -580,6 +603,7 @@ function submitOrder(event) {
   const message = "Namaste " + STORE_NAME + ", I would like to place an order.\n\n" +
     "Order reference: " + orderNumber + "\n\n" + itemLines + "\n\n" +
     "Items total: " + formatPrice(cartTotal()) + "\n" +
+    "PhonePe offer: 10% off every product when paid through the PhonePe button (discounted items total " + formatExactPrice(phonePePaymentTotal(items).payable) + "). It does not apply to a regular WhatsApp order.\n" +
     "Delivery: Please confirm the availability and charge for my address.\n" +
     "Payment: Please verify any PhonePe / UPI transfer manually before marking this order paid.\n" +
     "PhonePe transaction reference (if already paid): " + (details.paymentReference.trim() || "Not provided") + "\n\n" +
