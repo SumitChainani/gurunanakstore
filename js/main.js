@@ -12,10 +12,11 @@ const PHONEPE_DISCOUNT_PERCENT = 10;
 const CART_STORAGE_KEY = "gurunanakAccessoriesCart";
 const PHONEPE_RETURN_STORAGE_KEY = "gurunanakPhonePePendingOrder";
 const UPI_PENDING_ORDER_KEY = "gurunanakPendingUPIOrder";
+const PRODUCT_REVIEWS_STORAGE_KEY = "gurunanakProductReviews";
 const PHONEPE_API_BASE_URL = String(window.GURUNANAK_PHONEPE_API_URL || "").replace(/\/+$/, "");
 const STORE_UPI_ID = String(window.GURUNANAK_UPI_ID || "").trim();
 const STORE_UPI_PAYEE_NAME = String(window.GURUNANAK_UPI_PAYEE_NAME || STORE_NAME).trim();
-const MOTION_REVEAL_SELECTOR = ".section-heading, .product-card, .brand-promise, .benefits-section article, .service-strip > *, .reviews-section > div, .about-copy > div, .values-section article, .about-cta, .contact-card, .contact-form, .product-detail-media, .product-detail-content, .cart-item, .order-summary, .checkout-intro, .checkout-form, .payment-result";
+const MOTION_REVEAL_SELECTOR = ".section-heading, .product-card, .brand-promise, .benefits-section article, .service-strip > *, .reviews-section > div, .about-copy > div, .values-section article, .about-cta, .contact-card, .contact-form, .product-detail-media, .product-detail-content, .product-reviews-header, .product-review-card, .review-form, .cart-item, .order-summary, .checkout-intro, .checkout-form, .payment-result";
 let motionRevealObserver = null;
 
 function formatPrice(amount) {
@@ -197,6 +198,122 @@ function productCard(product) {
   ].join("");
 }
 
+// Reviews added on this static site stay in the visitor's browser. To publish
+// reviews for everyone, add verified reviews to the product data or connect a
+// shared review service.
+function readProductReviews() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PRODUCT_REVIEWS_STORAGE_KEY) || "{}");
+    return saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function getProductReviews(product) {
+  const savedReviews = readProductReviews()[product.id];
+  const reviews = (Array.isArray(product.reviews) ? product.reviews : []).concat(Array.isArray(savedReviews) ? savedReviews : []);
+  return reviews.map((review) => ({
+    name: String(review.name || "Rider").trim().slice(0, 60),
+    rating: Math.max(1, Math.min(5, Math.floor(Number(review.rating) || 5))),
+    comment: String(review.comment || "").trim().slice(0, 1000),
+    date: String(review.date || "")
+  })).filter((review) => review.name && review.comment).reverse();
+}
+
+function reviewStarsMarkup(rating) {
+  const safeRating = Math.max(1, Math.min(5, Math.floor(Number(rating) || 0)));
+  return '<span class="review-stars" role="img" aria-label="' + safeRating + ' out of 5 stars">' + "★".repeat(safeRating) + "☆".repeat(5 - safeRating) + '</span>';
+}
+
+function productReviewSummaryMarkup(reviews) {
+  const count = reviews.length;
+  const average = count ? (reviews.reduce((sum, review) => sum + review.rating, 0) / count).toFixed(1) : "—";
+  return [
+    '<div class="product-review-summary" data-review-summary>',
+    '<strong>' + average + '</strong>',
+    count ? reviewStarsMarkup(Math.round(Number(average))) : '<span class="review-stars review-stars-empty" aria-hidden="true">☆☆☆☆☆</span>',
+    '<span>' + (count ? count + (count === 1 ? ' customer review' : ' customer reviews') : 'No customer reviews yet') + '</span>',
+    '</div>'
+  ].join("");
+}
+
+function productReviewListMarkup(reviews) {
+  if (!reviews.length) {
+    return '<p class="product-review-empty">No reviews yet. If you have this product, share your experience with other riders.</p>';
+  }
+  return reviews.map((review) => {
+    const parsedDate = review.date ? new Date(review.date) : null;
+    const dateLabel = parsedDate && !Number.isNaN(parsedDate.getTime())
+      ? parsedDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+      : "";
+    return [
+      '<article class="product-review-card">',
+      '<div class="product-review-meta"><strong>' + escapeHTML(review.name) + '</strong>' + (dateLabel ? '<time>' + escapeHTML(dateLabel) + '</time>' : '') + '</div>',
+      reviewStarsMarkup(review.rating),
+      '<p>' + escapeHTML(review.comment) + '</p>',
+      '</article>'
+    ].join("");
+  }).join("");
+}
+
+function productReviewsMarkup(product) {
+  const reviews = getProductReviews(product);
+  return [
+    '<section class="product-reviews section" aria-labelledby="product-reviews-title">',
+    '<div class="product-reviews-header"><p class="eyebrow eyebrow-dark">Rider feedback</p><h2 id="product-reviews-title">Reviews for<br /><em>this product.</em></h2>',
+    productReviewSummaryMarkup(reviews),
+    '<p class="review-transparency-note">Customer feedback only. We do not add sample reviews.</p></div>',
+    '<div class="product-reviews-body">',
+    '<div class="product-review-list" data-product-review-list>' + productReviewListMarkup(reviews) + '</div>',
+    '<form class="review-form" data-review-form data-review-product="' + product.id + '">',
+    '<p class="eyebrow eyebrow-dark">Have this accessory?</p><h3>Share your experience</h3>',
+    '<div class="review-form-row"><label>Your name<input name="review-name" type="text" maxlength="60" autocomplete="name" required /></label>',
+    '<fieldset class="rating-input"><legend>Your rating</legend><div class="rating-options">',
+    [1, 2, 3, 4, 5].map((rating) => '<label><input type="radio" name="review-rating" value="' + rating + '"' + (rating === 5 ? ' required' : '') + ' /><span>' + rating + ' ★</span></label>').join(""),
+    '</div></fieldset></div>',
+    '<label>Your comment<textarea name="review-comment" rows="4" maxlength="1000" placeholder="What should another rider know?" required></textarea></label>',
+    '<button class="button button-gold" type="submit">Post review <span aria-hidden="true">→</span></button>',
+    '<p class="review-privacy-note">Reviews are saved in this browser only. To share yours with the store, use the WhatsApp link shown after posting.</p>',
+    '<p class="review-form-status" data-review-status role="status" aria-live="polite"></p>',
+    '</form></div></section>'
+  ].join("");
+}
+
+function submitProductReview(event, product) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  const review = {
+    name: String(formData.get("review-name") || "").trim(),
+    rating: Number(formData.get("review-rating")),
+    comment: String(formData.get("review-comment") || "").trim(),
+    date: new Date().toISOString()
+  };
+  const status = form.querySelector("[data-review-status]");
+  const savedReviews = readProductReviews();
+  const productReviews = Array.isArray(savedReviews[product.id]) ? savedReviews[product.id] : [];
+  productReviews.push(review);
+  savedReviews[product.id] = productReviews;
+
+  try {
+    localStorage.setItem(PRODUCT_REVIEWS_STORAGE_KEY, JSON.stringify(savedReviews));
+  } catch (error) {
+    status.textContent = "Your browser could not save this review. Please share it with us on WhatsApp instead.";
+    return;
+  }
+
+  const section = form.closest(".product-reviews");
+  const reviews = getProductReviews(product);
+  section.querySelector("[data-review-summary]").outerHTML = productReviewSummaryMarkup(reviews);
+  section.querySelector("[data-product-review-list]").innerHTML = productReviewListMarkup(reviews);
+  observeMotionTargets(section);
+  form.reset();
+  const message = "Hi GurunanakStore, I would like to share a review for " + product.name + ". Rating: " + review.rating + "/5. Review: " + review.comment;
+  const whatsappUrl = "https://wa.me/" + STORE_PHONE + "?text=" + encodeURIComponent(message);
+  status.innerHTML = 'Your review is saved on this device. It is not visible to other visitors yet. <a href="' + escapeHTML(whatsappUrl) + '" target="_blank" rel="noopener noreferrer">Send it to the store on WhatsApp</a>.';
+}
+
 function initHomeProducts() {
   const featuredGrid = document.querySelector("[data-featured-products]");
   if (featuredGrid) {
@@ -293,7 +410,9 @@ function initProductPage() {
     '<button type="button" data-detail-quantity="1" aria-label="Increase quantity">+</button></div>',
     '<button class="button button-gold" type="button" data-add-detail="' + product.id + '">Add to cart <span aria-hidden="true">→</span></button></div>',
     '<p class="fitment-note">Not sure this is the right fit? <a href="#" data-whatsapp-link data-wa-message="Hi GurunanakStore, can you help me check ' + escapeHTML(product.name) + ' for my bike?">Ask us on WhatsApp</a>.</p>',
-    '</div></section><section class="related-section section"><div class="section-heading"><div><p class="eyebrow eyebrow-dark">Keep exploring</p><h2>More for your<br /><em>next ride.</em></h2></div><a class="text-link text-link-dark" href="shop.html">All accessories <span aria-hidden="true">→</span></a></div><div class="product-grid" data-related-products></div></section>'
+    '</div></section>',
+    productReviewsMarkup(product),
+    '<section class="related-section section"><div class="section-heading"><div><p class="eyebrow eyebrow-dark">Keep exploring</p><h2>More for your<br /><em>next ride.</em></h2></div><a class="text-link text-link-dark" href="shop.html">All accessories <span aria-hidden="true">→</span></a></div><div class="product-grid" data-related-products></div></section>'
   ].join("");
 
   const relatedProducts = PRODUCTS.filter((item) => item.id !== product.id).slice(0, 4);
@@ -321,6 +440,7 @@ function initProductPage() {
   target.querySelector("[data-add-detail]").addEventListener("click", (event) => {
     addToCart(product.id, target.querySelector("[data-detail-quantity-value]").textContent, event.currentTarget);
   });
+  target.querySelector("[data-review-form]").addEventListener("submit", (event) => submitProductReview(event, product));
   initWhatsAppLinks();
 }
 

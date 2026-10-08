@@ -3,6 +3,8 @@
   -------------------------
   Replace these examples with the products you actually stock before launch.
   Keep each id unique and update the image path when you add product photos.
+  To publish real customer feedback for everyone, add a reviews array to that
+  product with name, rating (1–5), comment, and date. Never invent reviews.
 */
 
 const PRODUCTS = [
