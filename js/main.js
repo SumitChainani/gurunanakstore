@@ -13,6 +13,8 @@ const CART_STORAGE_KEY = "gurunanakAccessoriesCart";
 const PHONEPE_RETURN_STORAGE_KEY = "gurunanakPhonePePendingOrder";
 const PRODUCT_REVIEWS_STORAGE_KEY = "gurunanakProductReviews";
 const PHONEPE_API_BASE_URL = String(window.GURUNANAK_PHONEPE_API_URL || "").replace(/\/+$/, "");
+const STORE_UPI_ID = String(window.GURUNANAK_UPI_ID || "").trim();
+const STORE_UPI_PAYEE_NAME = String(window.GURUNANAK_UPI_PAYEE_NAME || STORE_NAME).trim();
 const MOTION_REVEAL_SELECTOR = ".section-heading, .product-card, .brand-promise, .benefits-section article, .service-strip > *, .reviews-section > div, .about-copy > div, .values-section article, .about-cta, .contact-card, .contact-form, .product-detail-media, .product-detail-content, .product-reviews-header, .product-review-card, .review-form, .cart-item, .order-summary, .checkout-intro, .checkout-form, .payment-result";
 let motionRevealObserver = null;
 
@@ -32,6 +34,48 @@ function escapeHTML(value) {
     "\"": "&quot;",
     "'": "&#39;"
   })[character]);
+}
+
+// A UPI QR is a UPI payment URI encoded as a QR image. The QR code library
+// runs in the browser; no cart details are sent to a QR image service.
+function buildUPIPaymentUri(amountRupees, orderReference) {
+  const parameters = new URLSearchParams({
+    pa: STORE_UPI_ID,
+    pn: STORE_UPI_PAYEE_NAME,
+    tr: orderReference,
+    tn: STORE_NAME + " order " + orderReference,
+    am: Number(amountRupees).toFixed(2),
+    cu: "INR"
+  });
+  return "upi://pay?" + parameters.toString();
+}
+
+function renderDynamicUPIQRCode(target, paymentUri, amountRupees) {
+  const qrContainer = target.querySelector("[data-upi-qr]");
+  if (!qrContainer) return;
+  if (!STORE_UPI_ID || typeof window.qrcode !== "function") {
+    qrContainer.dataset.error = "true";
+    qrContainer.setAttribute("role", "status");
+    qrContainer.textContent = "Dynamic QR unavailable. Check your internet connection and reload before paying.";
+    return;
+  }
+
+  try {
+    const qr = window.qrcode(0, "M");
+    qr.addData(paymentUri);
+    qr.make();
+    qrContainer.innerHTML = qr.createSvgTag({
+      cellSize: 6,
+      margin: 4,
+      scalable: true,
+      title: "PhonePe UPI payment for " + formatExactPrice(amountRupees),
+      alt: "Dynamic UPI payment QR. The payee and discounted cart amount are prefilled."
+    });
+  } catch (error) {
+    qrContainer.dataset.error = "true";
+    qrContainer.setAttribute("role", "status");
+    qrContainer.textContent = "Dynamic QR could not be created. Reload this page before paying.";
+  }
 }
 
 function getCart() {
@@ -472,7 +516,8 @@ function renderCheckoutPage() {
 
   const shortOrder = items.map((item) => item.quantity + " × " + item.product.name).join(", ");
   const paymentTotal = phonePePaymentTotal(items);
-  const orderReference = "GS" + Date.now().toString().slice(-10);
+  const orderReference = "GS" + Date.now().toString();
+  const paymentUri = buildUPIPaymentUri(paymentTotal.payable, orderReference);
   const summaryRows = items.map(({ product, quantity }) => '<div class="summary-line"><span>' + quantity + ' × ' + escapeHTML(product.name) + '</span><strong>' + formatPrice(product.price * quantity) + '</strong></div>').join("");
   target.innerHTML = [
     '<section class="checkout-page section"><div class="checkout-intro"><p class="eyebrow eyebrow-dark">Almost there</p><h1>Let’s get you<br />ready to ride.</h1>',
@@ -487,18 +532,19 @@ function renderCheckoutPage() {
     '<label>Phone number<input name="phone" autocomplete="tel" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" placeholder="10-digit mobile number" required /></label></div>',
     '<label>Delivery address<textarea name="address" autocomplete="street-address" placeholder="House number, street, area, city, state and PIN code" required></textarea></label>',
     '<section class="phonepe-payment-panel" aria-labelledby="phonepe-heading"><p class="eyebrow eyebrow-dark">UPI PAYMENT</p><h2 id="phonepe-heading"><span class="phonepe-mark" aria-hidden="true">पे</span> PhonePe QR</h2>',
-    '<p>Scan the QR and enter the exact amount shown below. The 10% PhonePe discount is already included.</p>',
+    '<p>The QR includes your cart amount after the 10% PhonePe discount. Scan it and check the payee and amount in your UPI app before confirming.</p>',
     '<input type="hidden" name="orderReference" value="' + orderReference + '" />',
-    '<div class="manual-qr-panel"><p class="eyebrow eyebrow-dark">SCAN FROM ANOTHER DEVICE</p><h3>PhonePe Business QR</h3>',
-    '<img class="phonepe-merchant-qr" src="images/phonepe-merchant-qr.jpeg" alt="GurunanakStore PhonePe merchant QR code for manual UPI payment" width="853" height="1600" loading="lazy" />',
-    '<p class="manual-qr-amount">PhonePe amount after 10% discount: <strong data-manual-qr-total>' + formatExactPrice(paymentTotal.payable) + '</strong></p>',
-    '<p class="manual-qr-warning">This is a fixed QR, so it cannot set the amount automatically. Enter the discounted amount shown above when scanning. Delivery is separate and must be confirmed. Direct UPI payments are checked manually.</p></div></section>',
+    '<div class="dynamic-qr-panel"><p class="eyebrow eyebrow-dark">SCAN WITH PHONEPE OR ANY UPI APP</p><h3>Payment QR</h3>',
+    '<div class="dynamic-upi-qr" data-upi-qr aria-live="polite">Creating your payment QR…</div>',
+    '<p class="dynamic-qr-amount">Amount in QR (10% discount included): <strong>' + formatExactPrice(paymentTotal.payable) + '</strong></p>',
+    '<p class="dynamic-qr-note">Delivery charges are confirmed separately. UPI payments are checked manually before an order is marked paid.</p></div></section>',
     '<label class="payment-reference-label">PhonePe transaction reference (optional, if you already paid)<input name="paymentReference" maxlength="50" placeholder="Enter the transaction ID shown in PhonePe" /></label>',
     '<button class="button button-outline button-wide whatsapp-order-button" type="submit">Send order by WhatsApp <span aria-hidden="true">↗</span></button>',
     '<p class="order-confirmation-note">WhatsApp orders are for manual confirmation and do not count as paid. Never share your UPI PIN or OTP with anyone.</p>',
     '<p class="order-confirmation-note">Order summary: ' + escapeHTML(shortOrder) + '</p></form></section>'
   ].join("");
 
+  renderDynamicUPIQRCode(target, paymentUri, paymentTotal.payable);
   observeMotionTargets(target);
 
   target.querySelector("[data-checkout-form]").addEventListener("submit", submitOrder);

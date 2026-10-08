@@ -6,7 +6,7 @@
 window.GURUNANAK_PHONEPE_API_URL = "";
 
 /*
-  Public UPI payment details for the direct PhonePe / UPI app option.
+  Public UPI payment details used to create a cart-specific payment QR.
   These details are visible on the website so customers can pay the store.
   Never put an OTP, UPI PIN, password, or PhonePe API secret here.
 */

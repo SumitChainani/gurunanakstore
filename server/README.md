@@ -1,6 +1,6 @@
 # PhonePe checkout setup
 
-This optional Node service keeps PhonePe Gateway credentials private and starts/verifies Standard Checkout payments. The current checkout also has a direct UPI app link that uses the public UPI ID in `js/payment-config.js`; this service is only needed for Gateway-based automatic payment verification. The static storefront continues to be hosted by GitHub Pages, while this service must be hosted separately on a Node host that supports HTTPS and private environment variables.
+This optional Node service keeps PhonePe Gateway credentials private and starts/verifies Standard Checkout payments. The current static checkout generates a cart-specific UPI QR using the public UPI ID in `js/payment-config.js`; this service is only needed for Gateway-based automatic payment verification. The static storefront continues to be hosted by GitHub Pages, while this service must be hosted separately on a Node host that supports HTTPS and private environment variables.
 
 ## What you need from PhonePe
 
@@ -10,7 +10,7 @@ This optional Node service keeps PhonePe Gateway credentials private and starts/
 
 Never send the Client Secret in chat or put credentials in website JavaScript, `js/payment-config.js`, or a committed file. Enter secrets directly in your server host's private Environment settings. PhonePe's current API uses a server-generated OAuth token, a server-created checkout order, and a server-to-server Order Status check.
 
-The API requests the UPI app and UPI QR options for PhonePe's hosted checkout. Ask PhonePe to enable UPI QR for the Payment Gateway account and test the QR option in UAT. PhonePe's hosted checkout QR is created for the server-calculated cart amount. The separate image at `../images/phonepe-merchant-qr.jpeg` is a fixed manual merchant QR; it does not change to a cart amount and payments made with it are not automatically verified by this service.
+The API requests the UPI app and UPI QR options for PhonePe's hosted checkout. Ask PhonePe to enable UPI QR for the Payment Gateway account and test the QR option in UAT. PhonePe's hosted checkout QR is created for the server-calculated cart amount. The separate image at `../images/phonepe-merchant-qr.jpeg` is an old fixed merchant QR; it does not change to a cart amount and is not used by the current checkout.
 
 ## Deploy the API service
 

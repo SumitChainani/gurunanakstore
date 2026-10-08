@@ -8,11 +8,11 @@ Open index.html in a web browser. Use Shop to browse items, Add to put an item i
 
 ## PhonePe and UPI payments
 
-The checkout applies a 10% discount to every product when the customer pays using the PhonePe button. It opens a standard UPI payment link with the discounted item total filled in. On a phone, the link opens an available UPI app or app chooser; choose PhonePe and check the payee and amount before approving. WhatsApp orders stay at the regular listed prices.
+Checkout creates a dynamic UPI QR for the current cart. It includes the configured UPI ID, payee name, a unique order reference, and the item total after the 10% PhonePe discount. The customer scans it with PhonePe or another UPI app and checks the payee and amount before approving. Delivery charges are confirmed separately.
 
-The image at `images/phonepe-merchant-qr.jpeg` is also shown as a manual scan option. It is a fixed QR, so it cannot fill in the cart amount; enter the discounted amount displayed at checkout. The payment button fills in the amount for the customer. Delivery charges are separate and must be confirmed before payment.
+The QR is generated in the browser using the pinned `qrcode-generator` library from jsDelivr ([upstream project and MIT license](https://github.com/kazuhikoarase/qrcode-generator)). Checkout needs an internet connection to load that library. The old fixed QR image is not used for cart payments because it cannot carry a changing amount.
 
-Direct UPI payments do not notify this static website when payment completes. Check the transfer in PhonePe Business before marking the order paid; the WhatsApp form lets the customer include the UPI transaction reference. A WhatsApp message alone is not proof of payment.
+This static site cannot verify UPI payments automatically. Check the transfer in PhonePe Business before marking the order paid; the WhatsApp order lets the customer include a transaction reference. A WhatsApp message alone is not proof of payment.
 
 For automatic server verification, the optional PhonePe Payment Gateway service in `server/` needs a separate PhonePe Gateway account and server credentials. See [server/README.md](server/README.md). Never add Gateway secrets to `js/payment-config.js`, any other public website file, or Git.
 

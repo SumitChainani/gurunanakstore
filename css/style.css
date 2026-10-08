@@ -277,13 +277,15 @@ h1, h2, h3, p { margin-top: 0; }
 .button-phonepe:hover:not(:disabled) { background: #4b187e; box-shadow: 0 7px 20px rgba(95,37,159,.2); }
 .button-phonepe:disabled { transform: none; opacity: .58; cursor: not-allowed; }
 .payment-setup-note, .payment-status-note { margin: 0; color: #72548e; font-size: 9px; line-height: 1.6; }
-.manual-qr-panel { display: grid; justify-items: start; gap: 10px; margin-top: 5px; padding-top: 15px; border-top: 1px solid #e5dcef; }
-.manual-qr-panel .eyebrow { margin: 0; }
-.manual-qr-panel h3 { margin: 0; color: var(--navy); font-family: var(--display); font-size: 22px; font-weight: 600; }
-.phonepe-merchant-qr { width: min(100%, 240px); height: auto; border: 1px solid #ded8e5; background: #080808; }
-.manual-qr-amount { margin: 0; color: #4f5660; font-size: 11px; }
-.manual-qr-amount strong { color: var(--navy); font-size: 15px; }
-.manual-qr-warning { max-width: 520px; margin: 0; color: #73572f; font-size: 10px; line-height: 1.7; }
+.dynamic-qr-panel { display: grid; justify-items: start; gap: 10px; margin-top: 5px; padding-top: 15px; border-top: 1px solid #e5dcef; }
+.dynamic-qr-panel .eyebrow { margin: 0; }
+.dynamic-qr-panel h3 { margin: 0; color: var(--navy); font-family: var(--display); font-size: 22px; font-weight: 600; }
+.dynamic-upi-qr { width: min(100%, 280px); aspect-ratio: 1; display: grid; place-items: center; padding: 12px; border: 1px solid #ded8e5; background: #fff; color: #73572f; font-size: 10px; line-height: 1.6; text-align: center; }
+.dynamic-upi-qr svg { display: block; width: 100%; height: 100%; }
+.dynamic-upi-qr[data-error="true"] { min-height: 90px; aspect-ratio: auto; padding: 16px; }
+.dynamic-qr-amount { margin: 0; color: #4f5660; font-size: 11px; }
+.dynamic-qr-amount strong { color: var(--navy); font-size: 18px; }
+.dynamic-qr-note { max-width: 520px; margin: 0; color: #73572f; font-size: 10px; line-height: 1.7; }
 .payment-reference-label { display: grid; gap: 7px; color: #4f5660; font-size: 10px; font-weight: 700; }
 .payment-reference-label input { width: 100%; min-height: 48px; padding: 12px 13px; border: 1px solid #dcdcd6; background: #fff; color: var(--ink); font-size: 11px; font-weight: 400; }
 .payment-result { max-width: 850px; min-height: 65vh; display: grid; align-content: center; justify-items: start; gap: 15px; margin: 0 auto; }
