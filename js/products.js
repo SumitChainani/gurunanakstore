@@ -75,6 +75,36 @@ const PRODUCTS = [
     fitment: "Please confirm bike compatibility, installation requirements, and included parts"
   },
   {
+    id: 9,
+    name: "CYT Lumina Pro — a premium LED projector headlight engineered for brighter illumination, focused visibility, durable performance, low power consumption, and safer rides every journey.",
+    category: "Electronics",
+    price: 640,
+    badge: "LED projector",
+    image: "images/cyt-lumina-pro-premium-light.jpg",
+    alt: "CYT Lumina Pro premium LED projector headlight with red bezel and black cooling body",
+    gallery: [
+      {
+        src: "images/cyt-lumina-pro-premium-light.jpg",
+        alt: "CYT Lumina Pro LED projector headlight shown from the side with its red bezel and cooling fins"
+      },
+      {
+        src: "images/cyt-lumina-pro-red-ring-light.jpg",
+        alt: "Close view of the CYT Lumina Pro red-ring projector lens and electrical connectors"
+      },
+      {
+        src: "images/cyt-lumina-pro-smarter-safer-ride.jpg",
+        alt: "CYT Lumina Pro projector headlight product image highlighting focused light and durable build"
+      },
+      {
+        src: "images/cyt-lumina-pro-cooling-fan.jpg",
+        alt: "Rear cooling fan detail for the CYT Lumina Pro LED headlight"
+      }
+    ],
+    shortDescription: "A premium LED projector headlight for brighter illumination, focused visibility, and low power consumption.",
+    description: "CYT Lumina Pro is a premium LED projector headlight engineered for brighter illumination, focused visibility, durable performance, low power consumption, and safer rides every journey. Please confirm your bike’s bulb fitment and installation requirements before ordering.",
+    fitment: "Please confirm bulb fitment and installation compatibility for your bike"
+  },
+  {
     id: 4,
     name: "Compact Handlebar Pouch",
     category: "Travel",
