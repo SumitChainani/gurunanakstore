@@ -15,6 +15,8 @@ const UPI_PENDING_ORDER_KEY = "gurunanakPendingUPIOrder";
 const PHONEPE_API_BASE_URL = String(window.GURUNANAK_PHONEPE_API_URL || "").replace(/\/+$/, "");
 const STORE_UPI_ID = String(window.GURUNANAK_UPI_ID || "").trim();
 const STORE_UPI_PAYEE_NAME = String(window.GURUNANAK_UPI_PAYEE_NAME || STORE_NAME).trim();
+const MOTION_REVEAL_SELECTOR = ".section-heading, .product-card, .brand-promise, .benefits-section article, .service-strip > *, .reviews-section > div, .about-copy > div, .values-section article, .about-cta, .contact-card, .contact-form, .product-detail-media, .product-detail-content, .cart-item, .order-summary, .checkout-intro, .checkout-form, .payment-result";
+let motionRevealObserver = null;
 
 function formatPrice(amount) {
   return "₹" + Number(amount).toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -199,6 +201,7 @@ function initHomeProducts() {
   const featuredGrid = document.querySelector("[data-featured-products]");
   if (featuredGrid) {
     featuredGrid.innerHTML = PRODUCTS.slice(0, 4).map(productCard).join("");
+    observeMotionTargets(featuredGrid);
   }
 }
 
@@ -220,6 +223,7 @@ function initShop() {
     });
     grid.innerHTML = visibleProducts.map(productCard).join("");
     noProducts.hidden = visibleProducts.length > 0;
+    observeMotionTargets(grid);
   }
 
   filterButtons.forEach((button) => {
@@ -294,6 +298,7 @@ function initProductPage() {
 
   const relatedProducts = PRODUCTS.filter((item) => item.id !== product.id).slice(0, 4);
   target.querySelector("[data-related-products]").innerHTML = relatedProducts.map(productCard).join("");
+  observeMotionTargets(target);
   target.querySelectorAll("[data-gallery-image]").forEach((button) => {
     button.addEventListener("click", () => {
       const selectedImage = galleryImages[Number(button.dataset.galleryImage)];
@@ -349,6 +354,8 @@ function renderCartPage() {
     '<p class="summary-note">We’ll confirm stock, fit, delivery availability, and any delivery charge before payment.</p>',
     '<a class="button button-gold button-wide" href="checkout.html">Continue to checkout <span aria-hidden="true">→</span></a></aside></div></section>'
   ].join("");
+
+  observeMotionTargets(target);
 
   target.querySelectorAll("[data-cart-change]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -408,6 +415,8 @@ function renderCheckoutPage() {
     '<p class="order-confirmation-note">WhatsApp orders are for manual confirmation and do not count as paid. Never share your UPI PIN or OTP with anyone.</p>',
     '<p class="order-confirmation-note">Order summary: ' + escapeHTML(shortOrder) + '</p></form></section>'
   ].join("");
+
+  observeMotionTargets(target);
 
   target.querySelector("[data-checkout-form]").addEventListener("submit", submitOrder);
   target.querySelector("[data-upi-pay]").addEventListener("click", startUPIPayment);
@@ -689,6 +698,31 @@ function initNavigation() {
   }));
 }
 
+function observeMotionTargets(root) {
+  if (!motionRevealObserver || !root || typeof root.querySelectorAll !== "function") return;
+  root.querySelectorAll(MOTION_REVEAL_SELECTOR).forEach((element) => {
+    if (element.classList.contains("motion-reveal")) return;
+    element.classList.add("motion-reveal");
+    motionRevealObserver.observe(element);
+  });
+}
+
+function initPremiumMotion() {
+  const prefersReducedMotion = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (prefersReducedMotion || typeof window.IntersectionObserver !== "function") return;
+
+  motionRevealObserver = new window.IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add("is-revealed");
+      motionRevealObserver.unobserve(entry.target);
+    });
+  }, { threshold: 0.12, rootMargin: "0px 0px -6% 0px" });
+
+  document.documentElement.classList.add("motion-ready");
+  observeMotionTargets(document);
+}
+
 document.addEventListener("click", (event) => {
   const addButton = event.target.closest("[data-add-product]");
   if (addButton) addToCart(addButton.dataset.addProduct, 1, addButton);
@@ -707,4 +741,5 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-year]").forEach((element) => {
     element.textContent = new Date().getFullYear();
   });
+  initPremiumMotion();
 });
