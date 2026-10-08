@@ -12,7 +12,8 @@ const PHONEPE_DISCOUNT_PERCENT = 10;
 const CART_STORAGE_KEY = "gurunanakAccessoriesCart";
 const PHONEPE_RETURN_STORAGE_KEY = "gurunanakPhonePePendingOrder";
 const PRODUCT_REVIEWS_STORAGE_KEY = "gurunanakProductReviews";
-const PHONEPE_API_BASE_URL = String(window.GURUNANAK_PHONEPE_API_URL || "").replace(/\/+$/, "");
+const API_BASE_URL = String(window.GURUNANAK_API_URL || window.GURUNANAK_PHONEPE_API_URL || "").replace(/\/+$/, "");
+const PHONEPE_API_BASE_URL = String(window.GURUNANAK_PHONEPE_API_URL || API_BASE_URL).replace(/\/+$/, "");
 const STORE_UPI_ID = String(window.GURUNANAK_UPI_ID || "").trim();
 const STORE_UPI_PAYEE_NAME = String(window.GURUNANAK_UPI_PAYEE_NAME || STORE_NAME).trim();
 const MOTION_REVEAL_SELECTOR = ".section-heading, .product-card, .brand-promise, .benefits-section article, .service-strip > *, .reviews-section > div, .about-copy > div, .values-section article, .about-cta, .contact-card, .contact-form, .product-detail-media, .product-detail-content, .product-reviews-header, .product-review-card, .review-form, .cart-item, .order-summary, .checkout-intro, .checkout-form, .payment-result";
@@ -24,6 +25,17 @@ function formatPrice(amount) {
 
 function formatExactPrice(amount) {
   return "₹" + Number(amount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function createCheckoutReference() {
+  const randomBytes = new Uint8Array(5);
+  if (window.crypto && typeof window.crypto.getRandomValues === "function") {
+    window.crypto.getRandomValues(randomBytes);
+  } else {
+    randomBytes.forEach((value, index) => { randomBytes[index] = Math.floor(Math.random() * 256); });
+  }
+  const suffix = Array.from(randomBytes, (value) => value.toString(36).padStart(2, "0")).join("").slice(0, 8).toUpperCase();
+  return "GS" + Date.now().toString() + suffix;
 }
 
 function escapeHTML(value) {
@@ -516,7 +528,7 @@ function renderCheckoutPage() {
 
   const shortOrder = items.map((item) => item.quantity + " × " + item.product.name).join(", ");
   const paymentTotal = phonePePaymentTotal(items);
-  const orderReference = "GS" + Date.now().toString();
+  const orderReference = createCheckoutReference();
   const paymentUri = buildUPIPaymentUri(paymentTotal.payable, orderReference);
   const summaryRows = items.map(({ product, quantity }) => '<div class="summary-line"><span>' + quantity + ' × ' + escapeHTML(product.name) + '</span><strong>' + formatPrice(product.price * quantity) + '</strong></div>').join("");
   target.innerHTML = [
@@ -725,8 +737,11 @@ function openWhatsApp(message) {
   }
 }
 
-function renderManualOrderStatus(target, orderNumber, amount, paymentReference, whatsappOpened, message) {
+function renderManualOrderStatus(target, orderNumber, amount, paymentReference, whatsappOpened, message, savedOrder) {
   const referenceWasEntered = Boolean(paymentReference.trim());
+  const trackingLink = savedOrder
+    ? 'order.html?orderId=' + encodeURIComponent(savedOrder.orderId)
+    : "";
   target.innerHTML = [
     '<section class="payment-result section payment-result--manual" aria-live="polite">',
     '<p class="eyebrow eyebrow-dark">ORDER DETAILS</p>',
@@ -736,12 +751,17 @@ function renderManualOrderStatus(target, orderNumber, amount, paymentReference, 
       ? 'Your transaction reference is included in the prepared WhatsApp message. Send that message so we can check the payment in PhonePe Business.'
       : 'Your order details are ready in WhatsApp. Send the message to place the order, then complete payment and share its transaction reference.') + '</p>',
     '<p class="payment-reference">Order reference: <code>' + escapeHTML(orderNumber) + '</code></p>',
-    '<div class="manual-payment-status"><strong>Payment status: awaiting manual verification</strong><span>Entering a transaction ID does not verify a payment. We will mark it paid only after confirming it in PhonePe Business.</span></div>',
+    '<div class="manual-payment-status"><strong>' + (savedOrder ? 'Order status: awaiting your review' : 'Online order tracking is not connected yet') + '</strong><span>' + (savedOrder
+      ? 'The order is saved securely. A transaction reference is only a clue; the store must check the PhonePe Business account before approving payment.'
+      : 'Send the prepared WhatsApp message to place this order. Website status tracking will start after the store’s order server is connected.') + '</span></div>',
     '<p class="payment-result-copy payment-result-amount">PhonePe QR amount after 10% discount: <strong>' + formatExactPrice(amount) + '</strong></p>',
-    '<p class="payment-result-copy">' + (whatsappOpened
-      ? 'WhatsApp opened in another tab. Review the details and tap Send there to share your order.'
-      : 'WhatsApp did not open automatically. Use the button below to send your order details.') + '</p>',
-    '<a class="button button-gold" href="' + whatsappUrl(message) + '" target="_blank" rel="noopener noreferrer">Open order message in WhatsApp <span aria-hidden="true">↗</span></a>',
+    '<p class="payment-result-copy">' + (savedOrder
+      ? 'Your order is saved. Open the prepared WhatsApp message below and tap Send so the store receives your details.'
+      : whatsappOpened
+        ? 'WhatsApp opened in another tab. Review the details and tap Send there to share your order.'
+        : 'WhatsApp did not open automatically. Use the button below to send your order details.') + '</p>',
+    '<a class="button button-gold" href="' + whatsappUrl(message) + '" target="_blank" rel="noopener noreferrer">' + (savedOrder ? 'Send order message in WhatsApp' : 'Open order message in WhatsApp') + ' <span aria-hidden="true">↗</span></a>',
+    savedOrder ? '<a class="button button-outline" href="' + trackingLink + '">Track order approval <span aria-hidden="true">→</span></a>' : '',
     '<a class="text-link text-link-dark" href="shop.html">Continue shopping <span aria-hidden="true">→</span></a>',
     '</section>'
   ].join("");
@@ -749,7 +769,7 @@ function renderManualOrderStatus(target, orderNumber, amount, paymentReference, 
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-function submitOrder(event) {
+async function submitOrder(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const target = document.querySelector("[data-checkout-page]");
@@ -761,10 +781,46 @@ function submitOrder(event) {
     return;
   }
   const details = Object.fromEntries(new FormData(form));
-  const orderNumber = String(details.orderReference || "GS" + Date.now().toString().slice(-10));
+  const submitButton = form.querySelector('button[type="submit"]');
+  const initialButtonText = submitButton ? submitButton.innerHTML : "";
+  let savedOrder = null;
+
+  if (API_BASE_URL) {
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = "Saving your order…";
+    }
+    try {
+      const response = await fetch(API_BASE_URL + "/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: items.map(({ product, quantity }) => ({ productId: product.id, quantity })),
+          customer: { name: details.name, phone: details.phone, address: details.address },
+          checkoutReference: details.orderReference,
+          paymentReference: details.paymentReference
+        })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.orderId || !Number.isFinite(Number(result.amountRupees))) {
+        throw new Error(result.error || "We could not save the order. Please try again or contact us.");
+      }
+      savedOrder = result;
+    } catch (error) {
+      showToast(error.message || "We could not save the order. Please try again.");
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.innerHTML = initialButtonText;
+      }
+      return;
+    }
+  }
+
+  const orderNumber = String(savedOrder ? savedOrder.orderId : details.orderReference || "GS" + Date.now().toString().slice(-10));
   const itemLines = items.map(({ product, quantity }) => "- " + product.name + " x " + quantity + " — " + formatPrice(product.price * quantity)).join("\n");
   const message = "Namaste " + STORE_NAME + ", I would like to place an order.\n\n" +
     "Order reference: " + orderNumber + "\n\n" + itemLines + "\n\n" +
+    (savedOrder ? "UPI QR reference: " + savedOrder.checkoutReference + "\n" + "Order status page: " + new URL("order.html?orderId=" + encodeURIComponent(savedOrder.orderId), window.location.href).toString() + "\n\n" : "") +
     "Items total before PhonePe discount: " + formatPrice(cartTotal()) + "\n" +
     "PhonePe QR amount after 10% discount (if paying by QR): " + formatExactPrice(phonePePaymentTotal(items).payable) + "\n" +
     "Delivery: Please confirm the availability and charge for my address.\n" +
@@ -774,8 +830,11 @@ function submitOrder(event) {
     "Phone: " + details.phone + "\n" +
     "Delivery address: " + details.address + "\n\n" +
     "Please confirm stock, fit, delivery charge, and final total before payment.";
-  const whatsappOpened = openWhatsApp(message);
-  renderManualOrderStatus(target, orderNumber, phonePePaymentTotal(items).payable, details.paymentReference, whatsappOpened, message);
+  // When an API request was needed, offer a normal user-clickable WhatsApp link
+  // after the save completes so popup blockers do not swallow the message.
+  const whatsappOpened = savedOrder ? false : openWhatsApp(message);
+  const finalAmount = savedOrder ? Number(savedOrder.amountRupees) : phonePePaymentTotal(items).payable;
+  renderManualOrderStatus(target, orderNumber, finalAmount, details.paymentReference, whatsappOpened, message, savedOrder);
 }
 
 function initContactForm() {

@@ -1,9 +1,10 @@
 /*
-  Public URL of the separate PhonePe API service.
-  This is not a secret. Set it to your deployed HTTPS backend URL after setup.
-  Never put PhonePe Client IDs or secrets in this file.
+  Public URL of the separate order and PhonePe API service.
+  Set this to your deployed HTTPS backend URL after setup.
+  It is public; never put passwords or PhonePe Client Secrets in this file.
 */
-window.GURUNANAK_PHONEPE_API_URL = "";
+window.GURUNANAK_API_URL = "";
+window.GURUNANAK_PHONEPE_API_URL = window.GURUNANAK_API_URL;
 
 /*
   Public UPI payment details used to create a cart-specific payment QR.

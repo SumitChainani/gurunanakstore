@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#121b29" />
+    <title>Private Order Desk | GurunanakStore</title>
+    <meta name="description" content="Private order approval desk for GurunanakStore." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/style.css" />
+    <script src="js/payment-config.js" defer></script>
+    <script src="js/admin.js" defer></script>
+  </head>
+  <body data-page="admin">
+    <header class="site-header admin-header">
+      <a class="logo" href="index.html" aria-label="GurunanakStore home"><span class="logo-mark">G</span><span class="logo-word">GURUNANAK<small>STORE</small></span></a>
+      <a class="text-link text-link-dark" href="index.html">Open store <span aria-hidden="true">↗</span></a>
+    </header>
+    <main class="admin-main section">
+      <section class="admin-login" data-admin-login-panel>
+        <p class="eyebrow eyebrow-dark">PRIVATE STORE TOOL</p>
+        <h1>Order desk</h1>
+        <p class="admin-intro">Only the store owner can see customer details and approve an order. Enter the private password set on the order server.</p>
+        <form class="admin-login-form" data-admin-login-form>
+          <label for="admin-password">Owner password</label>
+          <input id="admin-password" name="password" type="password" autocomplete="off" required />
+          <button class="button button-gold" type="submit">Open my orders</button>
+          <p class="admin-notice" data-admin-login-notice role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="admin-dashboard" data-admin-dashboard hidden>
+        <div class="admin-dashboard-heading">
+          <div><p class="eyebrow eyebrow-dark">PRIVATE STORE TOOL</p><h1>Your orders</h1></div>
+          <div class="admin-actions"><button class="button button-outline" type="button" data-admin-refresh>Refresh</button><button class="text-link text-link-dark" type="button" data-admin-logout>Log out</button></div>
+        </div>
+        <p class="admin-notice" data-admin-notice role="status" aria-live="polite"></p>
+        <div class="admin-order-list" data-admin-orders></div>
+      </section>
+    </main>
+  </body>
+</html>

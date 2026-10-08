@@ -6,16 +6,23 @@
 
   Routes:
     GET  /health                      Basic readiness check
+    POST /api/orders                  Save a customer order for owner approval
+    GET  /api/orders/status?orderId=... Let a customer check approval status
+    POST /api/admin/login             Check the private owner password
+    GET  /api/admin/orders            List saved orders (owner only)
+    POST /api/admin/orders/:id/approve Approve a payment/order (owner only)
     POST /api/payments/create         Create PhonePe Standard Checkout order
-    GET  /api/payments/status?id=...  Verify the order with PhonePe
+    GET  /api/payments/status?id=...  Verify a PhonePe Gateway order
 */
 
 "use strict";
 
 const http = require("node:http");
 const crypto = require("node:crypto");
+const fs = require("node:fs/promises");
+const path = require("node:path");
 const { URL } = require("node:url");
-const PRODUCT_PRICES_RUPEES = require("./catalog");
+const PRODUCT_CATALOG = require("./catalog");
 const PHONEPE_DISCOUNT_PERCENT = 10;
 
 const PORT = Number(process.env.PORT || 8787);
@@ -24,6 +31,8 @@ const PHONEPE_CLIENT_ID = process.env.PHONEPE_CLIENT_ID || "";
 const PHONEPE_CLIENT_SECRET = process.env.PHONEPE_CLIENT_SECRET || "";
 const PHONEPE_CLIENT_VERSION = process.env.PHONEPE_CLIENT_VERSION || "";
 const SITE_URL = process.env.SITE_URL || "https://gurunanakstore.shop";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
+const ORDERS_FILE = path.resolve(process.env.ORDERS_FILE || path.join(__dirname, "data", "orders.json"));
 const ALLOWED_ORIGINS = new Set(
   String(process.env.SITE_ORIGINS || "https://gurunanakstore.shop,https://www.gurunanakstore.shop")
     .split(",")
@@ -44,6 +53,12 @@ const AUTH_URL = PHONEPE_ENV === "production"
 
 let cachedToken = "";
 let tokenExpiresAt = 0;
+let orderWriteQueue = Promise.resolve();
+const adminLoginFailures = new Map();
+const ADMIN_FAILURE_WINDOW_MS = 15 * 60 * 1000;
+const ADMIN_MAX_FAILURES = 8;
+const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+const adminSessions = new Map();
 
 function isConfigured() {
   return Boolean(PHONEPE_CLIENT_ID && PHONEPE_CLIENT_SECRET && PHONEPE_CLIENT_VERSION);
@@ -59,7 +74,7 @@ function corsHeaders(origin) {
   if (origin && ALLOWED_ORIGINS.has(origin)) {
     headers["Access-Control-Allow-Origin"] = origin;
     headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
-    headers["Access-Control-Allow-Headers"] = "Content-Type";
+    headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization";
   }
   return headers;
 }
@@ -105,7 +120,8 @@ function getOrderTotal(items) {
   const totalRupees = items.reduce((total, item) => {
     const productId = Number(item && item.productId);
     const quantity = Number(item && item.quantity);
-    const price = PRODUCT_PRICES_RUPEES[productId];
+    const product = PRODUCT_CATALOG[productId];
+    const price = product && product.price;
     if (!Number.isInteger(productId) || !price || !Number.isInteger(quantity) || quantity < 1 || quantity > 20) {
       throw Object.assign(new Error("The cart contains an invalid product or quantity."), { statusCode: 400 });
     }
@@ -118,6 +134,159 @@ function getOrderTotal(items) {
   // PhonePe orders receive 10% off the merchandise total. The result is
   // returned in paise so the discount stays exact for UPI payments.
   return Math.round(totalRupees * (100 - PHONEPE_DISCOUNT_PERCENT));
+}
+
+function buildOrder(body) {
+  const items = body.items;
+  const amountPaise = getOrderTotal(items);
+  const customer = body.customer || {};
+  const name = String(customer.name || "").trim();
+  const phone = String(customer.phone || "").replace(/\D/g, "");
+  const address = String(customer.address || "").trim();
+  const paymentReference = String(body.paymentReference || "").trim();
+
+  if (name.length < 2 || name.length > 100) {
+    throw Object.assign(new Error("Enter a valid customer name."), { statusCode: 400 });
+  }
+  if (!/^\d{10}$/.test(phone)) {
+    throw Object.assign(new Error("Enter a valid 10-digit phone number."), { statusCode: 400 });
+  }
+  if (address.length < 8 || address.length > 500) {
+    throw Object.assign(new Error("Enter a delivery address between 8 and 500 characters."), { statusCode: 400 });
+  }
+  const checkoutReference = String(body.checkoutReference || "").trim();
+  if (!/^GS\d{13}[A-Z0-9]{8}$/.test(checkoutReference)) {
+    throw Object.assign(new Error("The checkout reference is not valid. Reload checkout and try again."), { statusCode: 400 });
+  }
+  if (paymentReference.length > 60) {
+    throw Object.assign(new Error("The payment reference is too long."), { statusCode: 400 });
+  }
+
+  const orderItems = items.map((item) => {
+    const product = PRODUCT_CATALOG[Number(item.productId)];
+    return {
+      productId: Number(item.productId),
+      name: product.name,
+      unitPrice: product.price,
+      quantity: Number(item.quantity)
+    };
+  });
+  const subtotalRupees = orderItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const amountRupees = amountPaise / 100;
+
+  return {
+    orderId: crypto.randomBytes(18).toString("base64url"),
+    status: "PENDING",
+    paymentStatus: paymentReference ? "REFERENCE_PROVIDED" : "NOT_REPORTED",
+    checkoutReference,
+    paymentReference,
+    customer: { name, phone, address },
+    items: orderItems,
+    subtotalRupees,
+    discountRupees: Number((subtotalRupees * PHONEPE_DISCOUNT_PERCENT / 100).toFixed(2)),
+    amountPaise,
+    amountRupees,
+    createdAt: new Date().toISOString(),
+    confirmedAt: null
+  };
+}
+
+async function readOrders() {
+  try {
+    const contents = await fs.readFile(ORDERS_FILE, "utf8");
+    const orders = JSON.parse(contents);
+    if (!Array.isArray(orders)) throw new Error("The saved order file is invalid.");
+    return orders;
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
+}
+
+async function saveOrders(orders) {
+  await fs.mkdir(path.dirname(ORDERS_FILE), { recursive: true });
+  const temporaryFile = ORDERS_FILE + ".tmp";
+  await fs.writeFile(temporaryFile, JSON.stringify(orders, null, 2), { encoding: "utf8", mode: 0o600 });
+  await fs.rename(temporaryFile, ORDERS_FILE);
+}
+
+function updateOrders(operation) {
+  const result = orderWriteQueue.then(async () => {
+    const orders = await readOrders();
+    const updatedResult = operation(orders);
+    await saveOrders(orders);
+    return updatedResult;
+  });
+  orderWriteQueue = result.catch(() => {});
+  return result;
+}
+
+function publicOrder(order) {
+  return {
+    orderId: order.orderId,
+    status: order.status,
+    paymentStatus: order.paymentStatus,
+    amountRupees: order.amountRupees,
+    createdAt: order.createdAt,
+    confirmedAt: order.confirmedAt
+  };
+}
+
+function secretMatches(candidate) {
+  if (!ADMIN_PASSWORD || ADMIN_PASSWORD.length < 20) return false;
+  const expectedHash = crypto.createHash("sha256").update(ADMIN_PASSWORD).digest();
+  const candidateHash = crypto.createHash("sha256").update(String(candidate || "")).digest();
+  return crypto.timingSafeEqual(candidateHash, expectedHash);
+}
+
+function adminAttemptsRemaining(ipAddress) {
+  const entry = adminLoginFailures.get(ipAddress);
+  if (!entry || Date.now() - entry.startedAt > ADMIN_FAILURE_WINDOW_MS) {
+    adminLoginFailures.delete(ipAddress);
+    return ADMIN_MAX_FAILURES;
+  }
+  return Math.max(0, ADMIN_MAX_FAILURES - entry.count);
+}
+
+function recordAdminFailure(ipAddress) {
+  const now = Date.now();
+  const entry = adminLoginFailures.get(ipAddress);
+  if (!entry || now - entry.startedAt > ADMIN_FAILURE_WINDOW_MS) {
+    adminLoginFailures.set(ipAddress, { startedAt: now, count: 1 });
+    return;
+  }
+  entry.count += 1;
+}
+
+function clearAdminFailures(ipAddress) {
+  adminLoginFailures.delete(ipAddress);
+}
+
+function hasAdminAccess(request) {
+  const authorization = String(request.headers.authorization || "");
+  if (!authorization.startsWith("Bearer ")) return false;
+  const token = authorization.slice(7);
+  const expiresAt = adminSessions.get(token);
+  if (!expiresAt) return false;
+  if (Date.now() >= expiresAt) {
+    adminSessions.delete(token);
+    return false;
+  }
+  return true;
+}
+
+function createAdminSession() {
+  const now = Date.now();
+  for (const [token, expiresAt] of adminSessions) {
+    if (now >= expiresAt) adminSessions.delete(token);
+  }
+  const token = crypto.randomBytes(32).toString("base64url");
+  adminSessions.set(token, now + ADMIN_SESSION_TTL_MS);
+  return token;
+}
+
+function validOrderId(value) {
+  return /^[A-Za-z0-9_-]{24}$/.test(String(value || ""));
 }
 
 async function getAccessToken() {
@@ -227,8 +396,122 @@ const server = http.createServer(async (request, response) => {
     return response.end();
   }
 
+  if (requestUrl.pathname.startsWith("/api/") && !ALLOWED_ORIGINS.has(origin)) {
+    return sendJson(response, 403, { error: "This website is not allowed to use the order service." }, "");
+  }
+
   if (requestUrl.pathname === "/health" && request.method === "GET") {
-    return sendJson(response, 200, { ok: true, configured: isConfigured(), environment: PHONEPE_ENV }, origin);
+    return sendJson(response, 200, {
+      ok: true,
+      configured: isConfigured(),
+      adminConfigured: ADMIN_PASSWORD.length >= 20,
+      environment: PHONEPE_ENV
+    }, origin);
+  }
+
+  if (requestUrl.pathname === "/api/orders" && request.method === "POST") {
+    if (ADMIN_PASSWORD.length < 20) {
+      return sendJson(response, 503, { error: "Online order approval is not ready. Please contact the store or try again later." }, origin);
+    }
+    try {
+      const body = await readJson(request);
+      const order = buildOrder(body);
+      const savedOrder = await updateOrders((orders) => {
+        const existingOrder = orders.find((entry) => entry.checkoutReference === order.checkoutReference);
+        if (existingOrder) return existingOrder;
+        orders.unshift(order);
+        return order;
+      });
+      return sendJson(response, 201, {
+        ...publicOrder(savedOrder),
+        checkoutReference: savedOrder.checkoutReference,
+        statusUrl: new URL("/order.html?orderId=" + encodeURIComponent(savedOrder.orderId), SITE_URL).toString()
+      }, origin);
+    } catch (error) {
+      const status = Number(error.statusCode) || 500;
+      if (status >= 500) console.error("Order could not be saved:", error.message);
+      return sendJson(response, status, {
+        error: status === 400 ? error.message : "We could not save this order right now. Please contact GurunanakStore."
+      }, origin);
+    }
+  }
+
+  if (requestUrl.pathname === "/api/orders/status" && request.method === "GET") {
+    const orderId = requestUrl.searchParams.get("orderId") || "";
+    if (!validOrderId(orderId)) {
+      return sendJson(response, 400, { error: "The order reference is not valid." }, origin);
+    }
+    try {
+      const order = (await readOrders()).find((entry) => entry.orderId === orderId);
+      if (!order) return sendJson(response, 404, { error: "We could not find this order." }, origin);
+      return sendJson(response, 200, publicOrder(order), origin);
+    } catch (error) {
+      console.error("Order status could not be read:", error.message);
+      return sendJson(response, 500, { error: "We could not check this order yet." }, origin);
+    }
+  }
+
+  if (requestUrl.pathname === "/api/admin/login" && request.method === "POST") {
+    if (ADMIN_PASSWORD.length < 20) {
+      return sendJson(response, 503, { error: "Owner access has not been configured on the server yet." }, origin);
+    }
+    const ipAddress = request.socket.remoteAddress || "unknown";
+    if (adminAttemptsRemaining(ipAddress) === 0) {
+      return sendJson(response, 429, { error: "Too many attempts. Wait 15 minutes, then try again." }, origin);
+    }
+    try {
+      const body = await readJson(request);
+      if (!secretMatches(body.password)) {
+        recordAdminFailure(ipAddress);
+        return sendJson(response, ADMIN_PASSWORD ? 401 : 503, {
+          error: ADMIN_PASSWORD ? "That password did not match." : "Owner access has not been configured on the server yet."
+        }, origin);
+      }
+      clearAdminFailures(ipAddress);
+      return sendJson(response, 200, { authenticated: true, token: createAdminSession() }, origin);
+    } catch (error) {
+      return sendJson(response, Number(error.statusCode) || 400, { error: error.message }, origin);
+    }
+  }
+
+  if (requestUrl.pathname === "/api/admin/orders" && request.method === "GET") {
+    if (!hasAdminAccess(request)) return sendJson(response, 401, { error: "Owner sign-in is required." }, origin);
+    try {
+      const orders = await readOrders();
+      return sendJson(response, 200, { orders }, origin);
+    } catch (error) {
+      console.error("Owner order list could not be read:", error.message);
+      return sendJson(response, 500, { error: "We could not load the saved orders." }, origin);
+    }
+  }
+
+  const approveMatch = requestUrl.pathname.match(/^\/api\/admin\/orders\/([A-Za-z0-9_-]{24})\/approve$/);
+  if (approveMatch && request.method === "POST") {
+    if (!hasAdminAccess(request)) return sendJson(response, 401, { error: "Owner sign-in is required." }, origin);
+    try {
+      const orderId = approveMatch[1];
+      const order = await updateOrders((orders) => {
+        const foundOrder = orders.find((entry) => entry.orderId === orderId);
+        if (!foundOrder) return null;
+        if (foundOrder.status !== "APPROVED") {
+          if (!foundOrder.paymentReference) {
+            throw Object.assign(new Error("Ask the customer for their payment reference before approving this order."), { statusCode: 400 });
+          }
+          foundOrder.status = "APPROVED";
+          foundOrder.paymentStatus = "MANUALLY_VERIFIED";
+          foundOrder.confirmedAt = new Date().toISOString();
+        }
+        return publicOrder(foundOrder);
+      });
+      if (!order) return sendJson(response, 404, { error: "We could not find this order." }, origin);
+      return sendJson(response, 200, order, origin);
+    } catch (error) {
+      const status = Number(error.statusCode) || 500;
+      if (status >= 500) console.error("Order approval could not be saved:", error.message);
+      return sendJson(response, status, {
+        error: status === 400 ? error.message : "We could not save the approval. Please try again."
+      }, origin);
+    }
   }
 
   if (requestUrl.pathname === "/api/payments/create" && request.method === "POST") {
@@ -265,4 +548,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { getOrderTotal };
+module.exports = { getOrderTotal, buildOrder, server };

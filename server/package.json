@@ -2,7 +2,7 @@
   "name": "gurunanakstore-phonepe-api",
   "version": "1.0.0",
   "private": true,
-  "description": "Small server-side PhonePe Standard Checkout API for GurunanakStore",
+  "description": "GurunanakStore order approval and optional PhonePe payment API",
   "scripts": {
     "start": "node index.js",
     "test": "node --test"

@@ -15,6 +15,7 @@ desktop.ini
 .env
 .env.*
 !.env.example
+/server/data/
 
 # Optional dependencies and generated site folders
 node_modules/

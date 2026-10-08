@@ -1,6 +1,6 @@
-# PhonePe checkout setup
+# Order approval and PhonePe API setup
 
-This optional Node service keeps PhonePe Gateway credentials private and starts/verifies Standard Checkout payments. The current static checkout generates a cart-specific UPI QR using the public UPI ID in `js/payment-config.js`; this service is only needed for Gateway-based automatic payment verification. The static storefront continues to be hosted by GitHub Pages, while this service must be hosted separately on a Node host that supports HTTPS and private environment variables.
+This Node service stores customer orders, provides a password-protected owner approval desk, and can optionally start/verify PhonePe Standard Checkout payments. The static storefront continues to be hosted by GitHub Pages; this service must be hosted separately on a Node host with HTTPS, private environment variables, and persistent storage.
 
 ## What you need from PhonePe
 
@@ -21,18 +21,26 @@ Create a Node.js web service from this repository with:
 - **Start command:** `npm start`
 - **Node version:** 20 or newer
 
-Add these private environment values in the host dashboard. Start in sandbox mode:
+For a beginner, Railway can connect directly to this GitHub repository. Create a service from the repo, set its root directory to `server`, use `npm start`, and add a volume mounted at `/data`. Then add the environment values below and generate an HTTPS public URL for the service. Railway's free tier has a limited monthly usage credit, so check its current usage before relying on it for a live shop.
+
+For the merchant-QR approval dashboard, set these values in your host's private environment settings. PhonePe Gateway credentials below are only needed if you later add hosted Gateway checkout:
 
 | Variable | Value |
 |---|---|
-| `PHONEPE_ENV` | `sandbox` |
-| `PHONEPE_CLIENT_ID` | UAT Client ID from PhonePe |
-| `PHONEPE_CLIENT_SECRET` | UAT Client Secret from PhonePe |
-| `PHONEPE_CLIENT_VERSION` | UAT Client Version from PhonePe |
 | `SITE_URL` | `https://gurunanakstore.shop` |
 | `SITE_ORIGINS` | `https://gurunanakstore.shop,https://www.gurunanakstore.shop` |
+| `ADMIN_PASSWORD` | A unique private password, at least 20 characters |
+| `ORDERS_FILE` | A path on the host's persistent disk, e.g. `/data/orders.json` |
 
-Your host supplies `PORT`. The service exposes `GET /health`, `POST /api/payments/create`, and `GET /api/payments/status`. Copy the service's public HTTPS URL, for example `https://your-service.example`, into `window.GURUNANAK_PHONEPE_API_URL` in `js/payment-config.js` (without a trailing slash). That URL is public; the credentials stay on the server.
+For optional PhonePe Gateway checkout, also set `PHONEPE_ENV=sandbox`, `PHONEPE_CLIENT_ID`, `PHONEPE_CLIENT_SECRET`, and `PHONEPE_CLIENT_VERSION` from PhonePe's UAT dashboard. These are not needed to approve manual QR orders.
+
+Your host supplies `PORT`. The service exposes order and admin routes, plus `GET /health`, `POST /api/payments/create`, and `GET /api/payments/status`. Copy the service's public HTTPS URL, for example `https://your-service.example`, into `window.GURUNANAK_API_URL` in `js/payment-config.js` (without a trailing slash). That URL is public; the admin password and payment credentials stay on the server.
+
+Set the admin password in the host's **private** environment settings only. Do not send it in chat or put it in website JavaScript. Mount a persistent disk and set `ORDERS_FILE` to a path on that disk. The order file contains customer names, phone numbers, addresses, and payment references; keep that disk private and restrict access to the service. If the hosting platform cannot provide persistent disk storage, do not use this JSON file store for live orders; configure a managed database before launch. Keep the service to one running instance when using the JSON file store.
+
+When connected, customers submit their checkout details to the order service and receive a tracking link. Open `https://gurunanakstore.shop/admin.html` and sign in with the private password to see orders. The page exchanges that password for a random, expiring session token kept only in that browser tab. Check the transaction reference in PhonePe Business, then choose **Confirm payment & approve order**. The customer's tracking page checks every 10 seconds and shows the approval animation. The admin page is not linked in public navigation; its API still requires owner authentication. Public tracking responses do not include customer contact or address details.
+
+This approval is your review in PhonePe Business. It does not automatically validate a customer-entered transaction reference. The existing PhonePe Gateway order-status flow is separate and requires Gateway credentials. Incoming orders appear in the dashboard after customers submit checkout; the dashboard can be refreshed to load them. It does not send push notifications to the owner.
 
 If you also use the `github.io` address to open the shop, add its web origin to `SITE_ORIGINS`. The `SITE_URL` must still be the public website address customers should return to after payment.
 
@@ -44,10 +52,10 @@ After UAT and PhonePe's production approval, replace the three PhonePe values wi
 
 ## Important behavior and maintenance
 
-- Product prices are checked again on the server in `catalog.js`. Whenever a price changes in `../js/products.js`, update the corresponding value in `catalog.js` too. The server ignores any total sent by the browser.
-- The service does not store order or shipping records. After a verified payment, the customer is offered a WhatsApp message with the delivery details. If they close the page before sending it, use the payment reference in PhonePe's Business Dashboard to identify the payment and contact the customer.
+- Product names and prices are checked again on the server in `catalog.js`. Whenever a product changes in `../js/products.js`, update its entry in `catalog.js` too. The server ignores any total or product name sent by the browser.
+- After a verified PhonePe Gateway payment, the customer is offered a WhatsApp message with the delivery details. If they close the page before sending it, use the payment reference in PhonePe's Business Dashboard to identify the payment and contact the customer.
 - A customer should not pay again while PhonePe reports a pending status. Check the payment in PhonePe's dashboard if the status remains unclear.
-- PhonePe Gateway totals include the 10% PhonePe discount on the product subtotal. The manual merchant QR on the static checkout page cannot prefill an amount; customers should enter the discounted total shown at checkout. Delivery is confirmed separately.
-- This service does not implement webhook notifications, inventory management, refunds, automatic shipping, or an order database.
+- Both the checkout QR and PhonePe Gateway amount include the 10% discount on the product subtotal. Delivery is confirmed separately. The old uploaded fixed merchant QR is not used by the current checkout.
+- This service does not implement webhook notifications, inventory management, refunds, or automatic shipping. Manual merchant-QR payments still need the owner to check them in PhonePe Business and approve the saved order.
 
 PhonePe reference: [Standard Checkout integration steps](https://developer.phonepe.com/payment-gateway/website-integration/standard-checkout/api-integration/integration-steps), [authorization](https://developer.phonepe.com/payment-gateway/website-integration/standard-checkout/api-integration/api-reference/authorization), [create payment](https://developer.phonepe.com/payment-gateway/website-integration/standard-checkout/api-integration/api-reference/create-payment), and [order status](https://developer.phonepe.com/payment-gateway/website-integration/standard-checkout/api-integration/api-reference/order-status).
