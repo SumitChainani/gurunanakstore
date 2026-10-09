@@ -1,36 +1,54 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
-const os = require("node:os");
 const path = require("node:path");
+const { Readable } = require("node:stream");
 
 const OWNER_PASSWORD = "test-owner-password-that-is-long-enough-2026";
 let server;
-let apiUrl;
 let ordersFile;
 let temporaryDirectory;
 let createdOrder;
 
 test.before(async () => {
-  temporaryDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "gurunanak-orders-test-"));
+  temporaryDirectory = await fs.mkdtemp(path.join(__dirname, ".orders-test-"));
   ordersFile = path.join(temporaryDirectory, "orders.json");
   process.env.ADMIN_PASSWORD = OWNER_PASSWORD;
   process.env.ORDERS_FILE = ordersFile;
   const app = require("./index");
   server = app.server;
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  apiUrl = "http://127.0.0.1:" + server.address().port;
 });
 
 test.after(async () => {
-  if (server && server.listening) await new Promise((resolve) => server.close(resolve));
   if (temporaryDirectory) await fs.rm(temporaryDirectory, { recursive: true, force: true });
 });
 
 async function send(pathname, options) {
   const requestOptions = Object.assign({}, options || {});
-  requestOptions.headers = Object.assign({ Origin: "https://gurunanakstore.shop" }, requestOptions.headers || {});
-  return fetch(apiUrl + pathname, requestOptions);
+  const headers = Object.fromEntries(Object.entries(
+    Object.assign({ Origin: "https://gurunanakstore.shop" }, requestOptions.headers || {})
+  ).map(([name, value]) => [name.toLowerCase(), value]));
+  const request = Readable.from(requestOptions.body ? [requestOptions.body] : []);
+  request.method = requestOptions.method || "GET";
+  request.url = pathname;
+  request.headers = headers;
+  request.socket = { remoteAddress: "127.0.0.1" };
+  return new Promise((resolve) => {
+    const response = {
+      writeHead(status, responseHeaders) {
+        this.status = status;
+        this.headers = responseHeaders;
+      },
+      end(body) {
+        resolve({
+          status: this.status,
+          headers: this.headers,
+          json: async () => JSON.parse(body || "null")
+        });
+      }
+    };
+    server.emit("request", request, response);
+  });
 }
 
 test("saves an order and exposes only its public status", async () => {
@@ -47,9 +65,11 @@ test("saves an order and exposes only its public status", async () => {
   assert.equal(response.status, 201);
   createdOrder = await response.json();
   assert.match(createdOrder.orderId, /^[A-Za-z0-9_-]{24}$/);
+  assert.match(createdOrder.trackingCode, /^GS-[A-HJ-NP-Z2-9]{16}$/);
   assert.equal(createdOrder.amountRupees, 809.1);
   assert.equal(createdOrder.status, "PENDING");
   assert.equal(createdOrder.checkoutReference, "GS1234567890123AB12CD34");
+  assert.equal(new URL(createdOrder.statusUrl).searchParams.get("trackingCode"), createdOrder.trackingCode);
 
   const repeatedSubmission = await send("/api/orders", {
     method: "POST",
@@ -61,14 +81,23 @@ test("saves an order and exposes only its public status", async () => {
       paymentReference: "UPI-TEST-123"
     })
   });
-  assert.equal((await repeatedSubmission.json()).orderId, createdOrder.orderId);
+  const repeatedOrder = await repeatedSubmission.json();
+  assert.equal(repeatedOrder.orderId, createdOrder.orderId);
+  assert.equal(repeatedOrder.trackingCode, createdOrder.trackingCode);
 
-  const publicResponse = await send("/api/orders/status?orderId=" + encodeURIComponent(createdOrder.orderId));
+  const publicResponse = await send("/api/orders/status?trackingCode=" + encodeURIComponent(createdOrder.trackingCode.toLowerCase()));
   assert.equal(publicResponse.status, 200);
   const publicStatus = await publicResponse.json();
   assert.equal(publicStatus.status, "PENDING");
+  assert.equal(publicStatus.trackingCode, createdOrder.trackingCode);
   assert.equal("customer" in publicStatus, false);
   assert.equal("paymentReference" in publicStatus, false);
+
+  const legacyStatus = await send("/api/orders/status?orderId=" + encodeURIComponent(createdOrder.orderId));
+  assert.equal(legacyStatus.status, 200);
+
+  const invalidReference = await send("/api/orders/status?trackingCode=GS-NOT-A-REAL-CODE");
+  assert.equal(invalidReference.status, 400);
 
   const savedOrders = JSON.parse(await fs.readFile(ordersFile, "utf8"));
   assert.equal(savedOrders.length, 1);
@@ -76,6 +105,9 @@ test("saves an order and exposes only its public status", async () => {
 });
 
 test("keeps order details private until the owner signs in", async () => {
+  const localFileOrigin = await send("/api/admin/orders", { headers: { Origin: "null" } });
+  assert.equal(localFileOrigin.status, 403);
+
   const response = await send("/api/admin/orders");
   assert.equal(response.status, 401);
 
@@ -100,7 +132,62 @@ test("keeps order details private until the owner signs in", async () => {
   assert.equal(orders.status, 200);
   const list = await orders.json();
   assert.equal(list.orders[0].customer.name, "Sumit Test");
+  assert.equal(list.orders[0].trackingCode, createdOrder.trackingCode);
   assert.equal(list.orders[0].paymentReference, "UPI-TEST-123");
+});
+
+test("blocks file-page CORS preflight but allows the production storefront origin", async () => {
+  const fileHealth = await send("/health", { headers: { Origin: "null" } });
+  assert.equal(fileHealth.status, 200);
+  assert.equal(fileHealth.headers["Access-Control-Allow-Origin"], undefined);
+
+  const fileOrigin = await send("/api/orders", {
+    method: "OPTIONS",
+    headers: {
+      Origin: "null",
+      "Access-Control-Request-Method": "POST",
+      "Access-Control-Request-Headers": "content-type"
+    }
+  });
+  assert.equal(fileOrigin.status, 403);
+
+  for (const origin of ["https://gurunanakstore.shop", "https://www.gurunanakstore.shop"]) {
+    const storeOrigin = await send("/api/orders", {
+      method: "OPTIONS",
+      headers: {
+        Origin: origin,
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "content-type"
+      }
+    });
+    assert.equal(storeOrigin.status, 204);
+    assert.equal(storeOrigin.headers["Access-Control-Allow-Origin"], origin);
+  }
+});
+
+test("rejects invalid checkout contact details without saving an order", async () => {
+  const before = JSON.parse(await fs.readFile(ordersFile, "utf8")).length;
+  const invalidCustomers = [
+    { name: "", phone: "8815960892", address: "8 Delivery Street, Pune 411001" },
+    { name: "Invalid Phone", phone: "123", address: "8 Delivery Street, Pune 411001" },
+    { name: "Invalid Address", phone: "8815960892", address: "Pune" }
+  ];
+
+  for (const [index, customer] of invalidCustomers.entries()) {
+    const response = await send("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: [{ productId: 1, quantity: 1 }],
+        customer,
+        checkoutReference: "GS123456789012" + (7 + index) + "AB12CD34"
+      })
+    });
+    assert.equal(response.status, 400);
+  }
+
+  const after = JSON.parse(await fs.readFile(ordersFile, "utf8")).length;
+  assert.equal(after, before);
 });
 
 test("does not allow payment approval without a customer transaction reference", async () => {
@@ -115,6 +202,7 @@ test("does not allow payment approval without a customer transaction reference",
     })
   });
   const orderWithoutReference = await created.json();
+  assert.notEqual(orderWithoutReference.trackingCode, createdOrder.trackingCode);
   const login = await send("/api/admin/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -127,6 +215,61 @@ test("does not allow payment approval without a customer transaction reference",
     body: JSON.stringify({})
   });
   assert.equal(response.status, 400);
+});
+
+test("saves COD at full price and lets the owner accept it without marking payment paid", async () => {
+  const health = await send("/health");
+  assert.equal(health.status, 200);
+  assert.equal((await health.json()).codEnabled, true);
+
+  const response = await send("/api/orders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      items: [{ productId: 1, quantity: 1 }],
+      customer: { name: "COD Customer", phone: "8815960892", address: "8 Delivery Street, Pune 411001" },
+      paymentMethod: "COD",
+      checkoutReference: "GS1234567890125AB12CD34",
+      paymentReference: "SHOULD-BE-IGNORED"
+    })
+  });
+  assert.equal(response.status, 201);
+  const codOrder = await response.json();
+  assert.equal(codOrder.paymentMethod, "COD");
+  assert.equal(codOrder.amountRupees, 899);
+  assert.equal(codOrder.status, "PENDING");
+  assert.equal(codOrder.paymentStatus, "COD_PENDING");
+
+  const persistedOrders = JSON.parse(await fs.readFile(ordersFile, "utf8"));
+  const persistedCOD = persistedOrders.find((order) => order.trackingCode === codOrder.trackingCode);
+  assert.ok(persistedCOD);
+  assert.equal(persistedCOD.discountRupees, 0);
+  assert.equal(persistedCOD.amountPaise, 89900);
+  assert.equal(persistedCOD.paymentReference, "");
+
+  const login = await send("/api/admin/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: OWNER_PASSWORD })
+  });
+  const session = await login.json();
+  const adminOrdersResponse = await send("/api/admin/orders", {
+    headers: { Authorization: "Bearer " + session.token }
+  });
+  assert.equal(adminOrdersResponse.status, 200);
+  const adminOrders = await adminOrdersResponse.json();
+  assert.equal(adminOrders.orders.find((order) => order.orderId === codOrder.orderId).paymentMethod, "COD");
+
+  const approval = await send("/api/admin/orders/" + codOrder.orderId + "/approve", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + session.token, "Content-Type": "application/json" },
+    body: JSON.stringify({})
+  });
+  assert.equal(approval.status, 200);
+  const approvedOrder = await approval.json();
+  assert.equal(approvedOrder.status, "APPROVED");
+  assert.equal(approvedOrder.paymentStatus, "COD_ACCEPTED");
+  assert.equal(approvedOrder.paymentMethod, "COD");
 });
 
 test("owner approval updates the public customer status", async () => {
@@ -144,10 +287,11 @@ test("owner approval updates the public customer status", async () => {
   assert.equal(response.status, 200);
   const approval = await response.json();
   assert.equal(approval.status, "APPROVED");
+  assert.equal(approval.trackingCode, createdOrder.trackingCode);
   assert.equal(approval.paymentStatus, "MANUALLY_VERIFIED");
   assert.ok(approval.confirmedAt);
 
-  const customerStatus = await send("/api/orders/status?orderId=" + encodeURIComponent(createdOrder.orderId));
+  const customerStatus = await send("/api/orders/status?trackingCode=" + encodeURIComponent(createdOrder.trackingCode));
   assert.equal(customerStatus.status, 200);
   assert.equal((await customerStatus.json()).status, "APPROVED");
 });

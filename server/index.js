@@ -7,7 +7,7 @@
   Routes:
     GET  /health                      Basic readiness check
     POST /api/orders                  Save a customer order for owner approval
-    GET  /api/orders/status?orderId=... Let a customer check approval status
+    GET  /api/orders/status?trackingCode=... Let a customer check approval status
     POST /api/admin/login             Check the private owner password
     GET  /api/admin/orders            List saved orders (owner only)
     POST /api/admin/orders/:id/approve Approve a payment/order (owner only)
@@ -24,6 +24,7 @@ const path = require("node:path");
 const { URL } = require("node:url");
 const PRODUCT_CATALOG = require("./catalog");
 const PHONEPE_DISCOUNT_PERCENT = 10;
+const TRACKING_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 const PORT = Number(process.env.PORT || 8787);
 const PHONEPE_ENV = String(process.env.PHONEPE_ENV || "sandbox").toLowerCase();
@@ -136,14 +137,34 @@ function getOrderTotal(items) {
   return Math.round(totalRupees * (100 - PHONEPE_DISCOUNT_PERCENT));
 }
 
+function generateTrackingCode() {
+  // Sixteen random base-32 characters make the code easy to copy while
+  // avoiding look-alike characters such as I, O, 0, and 1.
+  const randomBytes = crypto.randomBytes(16);
+  const code = Array.from(randomBytes, (value) => TRACKING_CODE_ALPHABET[value & 31]).join("");
+  return "GS-" + code;
+}
+
+function normalizeTrackingCode(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function isValidTrackingCode(value) {
+  return /^GS-[A-HJ-NP-Z2-9]{16}$/.test(normalizeTrackingCode(value));
+}
+
 function buildOrder(body) {
   const items = body.items;
-  const amountPaise = getOrderTotal(items);
+  const phonePeAmountPaise = getOrderTotal(items);
+  const paymentMethod = String(body.paymentMethod || "PHONEPE_UPI").trim().toUpperCase();
+  if (!["PHONEPE_UPI", "COD"].includes(paymentMethod)) {
+    throw Object.assign(new Error("Choose PhonePe UPI or cash on delivery."), { statusCode: 400 });
+  }
   const customer = body.customer || {};
   const name = String(customer.name || "").trim();
   const phone = String(customer.phone || "").replace(/\D/g, "");
   const address = String(customer.address || "").trim();
-  const paymentReference = String(body.paymentReference || "").trim();
+  const paymentReference = paymentMethod === "COD" ? "" : String(body.paymentReference || "").trim();
 
   if (name.length < 2 || name.length > 100) {
     throw Object.assign(new Error("Enter a valid customer name."), { statusCode: 400 });
@@ -172,18 +193,21 @@ function buildOrder(body) {
     };
   });
   const subtotalRupees = orderItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const amountPaise = paymentMethod === "COD" ? subtotalRupees * 100 : phonePeAmountPaise;
   const amountRupees = amountPaise / 100;
 
   return {
     orderId: crypto.randomBytes(18).toString("base64url"),
+    trackingCode: generateTrackingCode(),
+    paymentMethod,
     status: "PENDING",
-    paymentStatus: paymentReference ? "REFERENCE_PROVIDED" : "NOT_REPORTED",
+    paymentStatus: paymentMethod === "COD" ? "COD_PENDING" : paymentReference ? "REFERENCE_PROVIDED" : "NOT_REPORTED",
     checkoutReference,
     paymentReference,
     customer: { name, phone, address },
     items: orderItems,
     subtotalRupees,
-    discountRupees: Number((subtotalRupees * PHONEPE_DISCOUNT_PERCENT / 100).toFixed(2)),
+    discountRupees: paymentMethod === "COD" ? 0 : Number((subtotalRupees * PHONEPE_DISCOUNT_PERCENT / 100).toFixed(2)),
     amountPaise,
     amountRupees,
     createdAt: new Date().toISOString(),
@@ -224,6 +248,8 @@ function updateOrders(operation) {
 function publicOrder(order) {
   return {
     orderId: order.orderId,
+    trackingCode: order.trackingCode || "",
+    paymentMethod: order.paymentMethod || "PHONEPE_UPI",
     status: order.status,
     paymentStatus: order.paymentStatus,
     amountRupees: order.amountRupees,
@@ -405,6 +431,7 @@ const server = http.createServer(async (request, response) => {
       ok: true,
       configured: isConfigured(),
       adminConfigured: ADMIN_PASSWORD.length >= 20,
+      codEnabled: true,
       environment: PHONEPE_ENV
     }, origin);
   }
@@ -419,13 +446,16 @@ const server = http.createServer(async (request, response) => {
       const savedOrder = await updateOrders((orders) => {
         const existingOrder = orders.find((entry) => entry.checkoutReference === order.checkoutReference);
         if (existingOrder) return existingOrder;
+        while (orders.some((entry) => normalizeTrackingCode(entry.trackingCode) === order.trackingCode)) {
+          order.trackingCode = generateTrackingCode();
+        }
         orders.unshift(order);
         return order;
       });
       return sendJson(response, 201, {
         ...publicOrder(savedOrder),
         checkoutReference: savedOrder.checkoutReference,
-        statusUrl: new URL("/order.html?orderId=" + encodeURIComponent(savedOrder.orderId), SITE_URL).toString()
+        statusUrl: new URL("/order.html?trackingCode=" + encodeURIComponent(savedOrder.trackingCode), SITE_URL).toString()
       }, origin);
     } catch (error) {
       const status = Number(error.statusCode) || 500;
@@ -437,12 +467,15 @@ const server = http.createServer(async (request, response) => {
   }
 
   if (requestUrl.pathname === "/api/orders/status" && request.method === "GET") {
+    const trackingCode = normalizeTrackingCode(requestUrl.searchParams.get("trackingCode"));
     const orderId = requestUrl.searchParams.get("orderId") || "";
-    if (!validOrderId(orderId)) {
+    if (trackingCode ? !isValidTrackingCode(trackingCode) : !validOrderId(orderId)) {
       return sendJson(response, 400, { error: "The order reference is not valid." }, origin);
     }
     try {
-      const order = (await readOrders()).find((entry) => entry.orderId === orderId);
+      const order = (await readOrders()).find((entry) => trackingCode
+        ? normalizeTrackingCode(entry.trackingCode) === trackingCode
+        : entry.orderId === orderId);
       if (!order) return sendJson(response, 404, { error: "We could not find this order." }, origin);
       return sendJson(response, 200, publicOrder(order), origin);
     } catch (error) {
@@ -494,12 +527,18 @@ const server = http.createServer(async (request, response) => {
         const foundOrder = orders.find((entry) => entry.orderId === orderId);
         if (!foundOrder) return null;
         if (foundOrder.status !== "APPROVED") {
-          if (!foundOrder.paymentReference) {
-            throw Object.assign(new Error("Ask the customer for their payment reference before approving this order."), { statusCode: 400 });
+          if (foundOrder.paymentMethod === "COD") {
+            foundOrder.status = "APPROVED";
+            foundOrder.paymentStatus = "COD_ACCEPTED";
+            foundOrder.confirmedAt = new Date().toISOString();
+          } else {
+            if (!foundOrder.paymentReference) {
+              throw Object.assign(new Error("Ask the customer for their payment reference before approving this order."), { statusCode: 400 });
+            }
+            foundOrder.status = "APPROVED";
+            foundOrder.paymentStatus = "MANUALLY_VERIFIED";
+            foundOrder.confirmedAt = new Date().toISOString();
           }
-          foundOrder.status = "APPROVED";
-          foundOrder.paymentStatus = "MANUALLY_VERIFIED";
-          foundOrder.confirmedAt = new Date().toISOString();
         }
         return publicOrder(foundOrder);
       });
@@ -548,4 +587,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { getOrderTotal, buildOrder, server };
+module.exports = { getOrderTotal, buildOrder, generateTrackingCode, isValidTrackingCode, server };

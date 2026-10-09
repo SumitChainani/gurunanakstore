@@ -45,7 +45,7 @@ function showLogin(message) {
 
 function renderOrders(orders) {
   if (!orders.length) {
-    ordersContainer.innerHTML = '<div class="admin-empty"><span class="empty-icon" aria-hidden="true">GS</span><h2>No orders yet</h2><p>New website orders will appear here after order tracking is connected.</p></div>';
+    ordersContainer.innerHTML = '<div class="admin-empty"><span class="empty-icon" aria-hidden="true">GS</span><h2>No orders yet</h2><p>Orders appear here after the customer finishes checkout and submits the order. Scanning or paying the PhonePe QR by itself does not send the order to the store.</p></div>';
     return;
   }
 
@@ -54,17 +54,24 @@ function renderOrders(orders) {
     const created = new Date(order.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
     const phoneDigits = String(order.customer.phone).replace(/\D/g, "");
     const isApproved = order.status === "APPROVED";
-    const paymentReference = order.paymentReference
-      ? '<p><span>Transaction reference</span><strong>' + escapeAdminHTML(order.paymentReference) + '</strong></p>'
-      : '<p><span>Transaction reference</span><strong>Customer has not entered one</strong></p>';
+    const isCOD = order.paymentMethod === "COD";
+    const paymentMethod = isCOD ? "Cash on delivery" : "PhonePe / UPI";
+    const paymentReference = isCOD
+      ? '<p><span>Transaction reference</span><strong>Not needed for COD</strong></p>'
+      : order.paymentReference
+        ? '<p><span>Transaction reference</span><strong>' + escapeAdminHTML(order.paymentReference) + '</strong></p>'
+        : '<p><span>Transaction reference</span><strong>Customer has not entered one</strong></p>';
+    const trackingCode = order.trackingCode
+      ? '<p><span>Customer tracking code</span><strong><code>' + escapeAdminHTML(order.trackingCode) + '</code></strong></p>'
+      : '<p><span>Customer tracking code</span><strong>Older order; use its existing reference</strong></p>';
     return '<article class="admin-order-card" data-order-card="' + escapeAdminHTML(order.orderId) + '">' +
       '<div class="admin-order-top"><div><p class="eyebrow eyebrow-dark">ORDER ' + escapeAdminHTML(order.orderId) + '</p><span class="admin-order-date">' + escapeAdminHTML(created) + '</span></div>' +
       '<span class="admin-order-state ' + (isApproved ? 'is-approved' : 'is-pending') + '">' + (isApproved ? 'Approved' : 'Needs review') + '</span></div>' +
-      '<div class="admin-order-columns"><section><h2>Customer</h2><p><strong>' + escapeAdminHTML(order.customer.name) + '</strong></p><p><a href="tel:+91' + encodeURIComponent(phoneDigits) + '">' + escapeAdminHTML(order.customer.phone) + '</a></p><p class="admin-order-address">' + escapeAdminHTML(order.customer.address) + '</p>' + paymentReference + '<p><span>UPI QR reference</span><strong>' + escapeAdminHTML(order.checkoutReference) + '</strong></p></section>' +
-      '<section><h2>Items</h2><ul class="admin-item-list">' + itemRows + '</ul><div class="admin-order-total"><span>Items total</span><strong>' + adminPrice(order.subtotalRupees) + '</strong></div><div class="admin-order-total"><span>PhonePe discount</span><strong>−' + adminPrice(order.discountRupees) + '</strong></div><div class="admin-order-total admin-order-payable"><span>QR amount</span><strong>' + adminPrice(order.amountRupees) + '</strong></div></section></div>' +
+      '<div class="admin-order-columns"><section><h2>Customer</h2><p><strong>' + escapeAdminHTML(order.customer.name) + '</strong></p><p><a href="tel:+91' + encodeURIComponent(phoneDigits) + '">' + escapeAdminHTML(order.customer.phone) + '</a></p><p class="admin-order-address">' + escapeAdminHTML(order.customer.address) + '</p><p><span>Payment method</span><strong>' + paymentMethod + '</strong></p>' + trackingCode + paymentReference + (isCOD ? '' : '<p><span>UPI QR reference</span><strong>' + escapeAdminHTML(order.checkoutReference) + '</strong></p>') + '</section>' +
+      '<section><h2>Items</h2><ul class="admin-item-list">' + itemRows + '</ul><div class="admin-order-total"><span>Items total</span><strong>' + adminPrice(order.subtotalRupees) + '</strong></div>' + (isCOD ? '' : '<div class="admin-order-total"><span>PhonePe discount</span><strong>−' + adminPrice(order.discountRupees) + '</strong></div>') + '<div class="admin-order-total admin-order-payable"><span>' + (isCOD ? 'Cash due on delivery' : 'QR amount') + '</span><strong>' + adminPrice(order.amountRupees) + '</strong></div></section></div>' +
       (isApproved
-        ? '<p class="admin-approved-note">Order approved on ' + escapeAdminHTML(new Date(order.confirmedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })) + '.</p>'
-        : '<button class="button button-gold admin-approve-button" type="button" data-approve-order="' + escapeAdminHTML(order.orderId) + '" ' + (order.paymentReference ? '' : 'disabled title="Ask the customer for their transaction reference first."') + '>Confirm payment & approve order</button>' + (order.paymentReference ? '<p class="admin-order-reminder">Check this reference in PhonePe Business before approving. The website cannot verify QR transfers by reference alone.</p>' : '<p class="admin-order-reminder">Ask the customer for their PhonePe transaction reference before approving.</p>')) +
+        ? '<p class="admin-approved-note">' + (isCOD ? 'COD order accepted; payment is due at delivery. ' : 'Order approved and PhonePe payment verified. ') + escapeAdminHTML(new Date(order.confirmedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })) + '.</p>'
+        : '<button class="button button-gold admin-approve-button" type="button" data-approve-order="' + escapeAdminHTML(order.orderId) + '" data-payment-method="' + (isCOD ? 'COD' : 'PHONEPE_UPI') + '" ' + (!isCOD && !order.paymentReference ? 'disabled title="Ask the customer for their transaction reference first."' : '') + '>' + (isCOD ? 'Approve COD order' : 'Confirm payment & approve order') + '</button>' + (isCOD ? '<p class="admin-order-reminder">Approve the order details and availability. Collect cash on delivery; this does not mark an online payment as paid.</p>' : order.paymentReference ? '<p class="admin-order-reminder">Check this reference in PhonePe Business before approving. The website cannot verify QR transfers by reference alone.</p>' : '<p class="admin-order-reminder">Ask the customer for their PhonePe transaction reference before approving.</p>')) +
       '</article>';
   }).join("");
 
@@ -87,26 +94,36 @@ async function loadOrders() {
 async function approveOrder(event) {
   const button = event.currentTarget;
   const orderId = button.dataset.approveOrder;
-  if (!window.confirm("Have you checked that this payment reached your PhonePe Business account? Approving updates the customer's order page.")) return;
+  const isCOD = button.dataset.paymentMethod === "COD";
+  const confirmation = isCOD
+    ? "Approve this cash-on-delivery order? This accepts the order but does not mark it paid; collect cash when it is delivered."
+    : "Have you checked that this payment reached your PhonePe Business account? Approving updates the customer's order page.";
+  if (!window.confirm(confirmation)) return;
   button.disabled = true;
-  button.textContent = "Saving approval…";
+  button.textContent = isCOD ? "Approving COD order…" : "Saving approval…";
   try {
     await adminFetch("/api/admin/orders/" + encodeURIComponent(orderId) + "/approve", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({})
     });
-    dashboardNotice.textContent = "Order approved. The customer’s tracking page will update automatically.";
+    dashboardNotice.textContent = isCOD
+      ? "COD order approved. Payment remains due at delivery; the customer’s tracking page will update automatically."
+      : "Order approved. The customer’s tracking page will update automatically.";
     await loadOrders();
   } catch (error) {
     dashboardNotice.textContent = error.message;
     button.disabled = false;
-    button.textContent = "Confirm payment & approve order";
+    button.textContent = isCOD ? "Approve COD order" : "Confirm payment & approve order";
   }
 }
 
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (window.location.protocol === "file:") {
+    loginNotice.textContent = "This page is opened as a local file, so the secure order server cannot connect. Open https://gurunanakstore.shop/admin.html to view live orders.";
+    return;
+  }
   if (!ADMIN_API_URL) {
     loginNotice.textContent = "Order server is not connected yet. Deploy the server, then add its HTTPS address to js/payment-config.js.";
     return;
@@ -139,6 +156,10 @@ loginForm.addEventListener("submit", async (event) => {
     button.textContent = "Open my orders";
   }
 });
+
+if (window.location.protocol === "file:") {
+  loginNotice.textContent = "For live orders, open this admin page from https://gurunanakstore.shop/admin.html, not from a local file.";
+}
 
 document.querySelector("[data-admin-refresh]").addEventListener("click", loadOrders);
 document.querySelector("[data-admin-logout]").addEventListener("click", () => showLogin("You are signed out."));
