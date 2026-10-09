@@ -10,10 +10,14 @@ const orderIcon = document.querySelector("[data-order-icon]");
 const orderReference = document.querySelector("[data-order-reference]");
 const orderAmount = document.querySelector("[data-order-amount]");
 const refreshButton = document.querySelector("[data-order-refresh]");
+const saveToOrdersLink = document.querySelector("[data-save-to-orders]");
 let pollTimer = 0;
 let requestInFlight = false;
 
 orderReference.textContent = orderId || "Not provided";
+if (saveToOrdersLink && /^[A-Za-z0-9_-]{24}$/.test(orderId)) {
+  saveToOrdersLink.href = "orders.html?orderId=" + encodeURIComponent(orderId);
+}
 
 function setOrderState(state, title, message, amountText) {
   orderIcon.dataset.state = state;

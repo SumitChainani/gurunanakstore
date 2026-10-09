@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#121b29" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>My Orders | GurunanakStore</title>
+    <meta name="description" content="Review your GurunanakStore order history and check whether your orders have been approved." />
+    <meta property="og:title" content="My Orders | GurunanakStore" />
+    <meta property="og:description" content="Check your GurunanakStore order history and approval status." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="GurunanakStore" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/style.css" />
+    <script src="js/products.js" defer></script>
+    <script src="js/payment-config.js" defer></script>
+    <script src="js/main.js" defer></script>
+  </head>
+  <body data-page="orders">
+    <div class="announcement-bar"><span>Your order updates, all in one place</span><a href="shop.html">Continue shopping <span aria-hidden="true">↗</span></a></div>
+    <header class="site-header"><a class="logo" href="index.html" aria-label="GurunanakStore home"><span class="logo-mark">G</span><span class="logo-word">GURUNANAK<small>STORE</small></span></a><button class="menu-button" type="button" data-menu-button aria-label="Open menu" aria-expanded="false"><span></span><span></span><span></span></button><nav class="site-nav" data-site-nav aria-label="Main navigation"><a href="index.html">Home</a><a href="shop.html">Shop</a><a class="active" href="orders.html">My Orders</a><a href="about.html">About</a><a href="contact.html">Contact</a></nav><a class="header-cart" href="cart.html" aria-label="Shopping cart">Cart <span data-cart-count hidden>0</span></a></header>
+    <main class="orders-page section" data-order-history>
+      <header class="orders-page-heading"><p class="eyebrow eyebrow-dark"><span class="eyebrow-line"></span> MY GURUNANAKSTORE</p><h1>My <em>orders.</em></h1><p>See your saved orders, check approval updates, and quickly add past items to your cart again.</p></header>
+      <section class="order-lookup-card" aria-labelledby="order-lookup-title"><div><p class="eyebrow eyebrow-dark">Already placed an order?</p><h2 id="order-lookup-title">Add an existing order</h2><p>Paste the order tracking link or its order reference to save it in this browser.</p></div><form data-order-lookup><label for="order-reference-input">Order link or reference</label><div class="order-lookup-row"><input id="order-reference-input" name="orderReference" type="text" maxlength="300" autocomplete="off" placeholder="Paste your order link or reference" required /><button class="button button-gold" type="submit">Find order</button></div></form></section>
+      <p class="orders-notice" data-orders-notice role="status" aria-live="polite">Orders placed in this browser will appear below. Your list is saved on this device.</p>
+      <section class="customer-order-list" data-customer-orders aria-label="Your order history"></section>
+      <p class="orders-privacy-note">For your privacy, this page keeps history on this browser and checks status using private order references. Clear browser storage and this device’s history will be erased. Order history does not sync between devices yet.</p>
+    </main>
+    <footer class="site-footer"><div class="footer-main"><div><a class="logo" href="index.html"><span class="logo-mark">G</span><span class="logo-word">GURUNANAK<small>STORE</small></span></a><p>Useful gear for the road ahead.</p></div><nav aria-label="Footer navigation"><a href="shop.html">Shop</a><a href="orders.html">My Orders</a><a href="about.html">Our approach</a><a href="contact.html">Contact</a><a href="cart.html">Your cart</a></nav><div class="footer-contact"><span>Questions? Talk to a real person.</span><a href="tel:+918815960890">8815960890</a><a href="https://wa.me/918815960890" target="_blank" rel="noopener noreferrer">WhatsApp support ↗</a></div></div><div class="footer-bottom"><span>© <span data-year></span> GurunanakStore</span><span>Ride well. Go further.</span></div></footer>
+    <a class="whatsapp-float" href="#" data-whatsapp-link aria-label="Chat with GurunanakStore on WhatsApp"><span class="whatsapp-icon" aria-hidden="true">◔</span><span>Chat with us</span></a><div class="toast" data-toast role="status" aria-live="polite"></div>
+  </body>
+</html>

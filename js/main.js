@@ -12,6 +12,7 @@ const PHONEPE_DISCOUNT_PERCENT = 10;
 const CART_STORAGE_KEY = "gurunanakAccessoriesCart";
 const PHONEPE_RETURN_STORAGE_KEY = "gurunanakPhonePePendingOrder";
 const PRODUCT_REVIEWS_STORAGE_KEY = "gurunanakProductReviews";
+const ORDER_HISTORY_STORAGE_KEY = "gurunanakCustomerOrderHistory";
 const API_BASE_URL = String(window.GURUNANAK_API_URL || window.GURUNANAK_PHONEPE_API_URL || "").replace(/\/+$/, "");
 const PHONEPE_API_BASE_URL = String(window.GURUNANAK_PHONEPE_API_URL || API_BASE_URL).replace(/\/+$/, "");
 const STORE_UPI_ID = String(window.GURUNANAK_UPI_ID || "").trim();
@@ -769,6 +770,193 @@ function renderManualOrderStatus(target, orderNumber, amount, paymentReference, 
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+// Customer history stays in the browser that placed the order. The server
+// only receives random order IDs when checking status, so no phone lookup can
+// reveal another customer's orders.
+function readCustomerOrderHistory() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(ORDER_HISTORY_STORAGE_KEY) || "[]");
+    if (!Array.isArray(saved)) return [];
+    return saved.filter((order) => order && /^[A-Za-z0-9_-]{24}$/.test(String(order.orderId || "")))
+      .map((order) => ({
+        orderId: String(order.orderId),
+        createdAt: String(order.createdAt || ""),
+        amountRupees: Number(order.amountRupees) || 0,
+        status: String(order.status || "PENDING"),
+        items: Array.isArray(order.items) ? order.items.map((item) => ({
+          productId: Number(item.productId),
+          name: String(item.name || "Bike accessory").slice(0, 160),
+          price: Number(item.price) || 0,
+          quantity: Math.max(1, Math.min(20, Math.floor(Number(item.quantity) || 1)))
+        })).filter((item) => Number.isInteger(item.productId) && item.price >= 0) : []
+      }));
+  } catch (error) {
+    return [];
+  }
+}
+
+function saveCustomerOrderHistory(order, items) {
+  const orderId = String(order && order.orderId || "");
+  if (!/^[A-Za-z0-9_-]{24}$/.test(orderId)) return false;
+  const history = readCustomerOrderHistory();
+  const previous = history.find((entry) => entry.orderId === orderId);
+  const itemSnapshot = Array.isArray(items) && items.length
+    ? items.map(({ product, quantity }) => ({
+      productId: Number(product.id),
+      name: product.name,
+      price: Number(product.price),
+      quantity: Number(quantity)
+    }))
+    : (previous ? previous.items : []);
+  const amountRupees = Number(order.amountRupees);
+  const savedOrder = {
+    orderId,
+    createdAt: String(order.createdAt || (previous && previous.createdAt) || new Date().toISOString()),
+    amountRupees: Number.isFinite(amountRupees) && amountRupees >= 0 ? amountRupees : (previous ? previous.amountRupees : 0),
+    status: String(order.status || (previous && previous.status) || "PENDING"),
+    items: itemSnapshot
+  };
+  try {
+    localStorage.setItem(ORDER_HISTORY_STORAGE_KEY, JSON.stringify([savedOrder, ...history.filter((entry) => entry.orderId !== orderId)].slice(0, 30)));
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function orderDateLabel(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Date unavailable" : date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function renderCustomerOrderCards(container) {
+  const history = readCustomerOrderHistory();
+  if (!history.length) {
+    container.innerHTML = '<div class="orders-empty"><span class="empty-icon" aria-hidden="true">GS</span><h2>No saved orders yet</h2><p>Orders you place in this browser will appear here. You can also add an order using its tracking link or 24-character order reference.</p><a class="button button-gold" href="shop.html">Explore the shop <span aria-hidden="true">→</span></a></div>';
+    return;
+  }
+
+  container.innerHTML = history.map((order) => {
+    const itemMarkup = order.items.length
+      ? '<ul class="customer-order-items">' + order.items.map((item) => '<li><span>' + escapeHTML(item.name) + ' × ' + item.quantity + '</span><strong>' + formatPrice(item.price * item.quantity) + '</strong></li>').join("") + '</ul>'
+      : '<p class="customer-order-note">Items are not saved on this device for this older order.</p>';
+    const trackUrl = "order.html?orderId=" + encodeURIComponent(order.orderId);
+    const reorderButton = order.items.length
+      ? '<button class="button button-outline button-small" type="button" data-reorder-order="' + escapeHTML(order.orderId) + '">Buy again</button>'
+      : '';
+    return '<article class="customer-order-card" data-customer-order="' + escapeHTML(order.orderId) + '">' +
+      '<div class="customer-order-heading"><div><p class="eyebrow eyebrow-dark">ORDER ' + escapeHTML(order.orderId.slice(0, 8).toUpperCase()) + '</p><time>' + escapeHTML(orderDateLabel(order.createdAt)) + '</time></div><span class="order-status-badge is-pending" data-order-status>Checking status…</span></div>' +
+      itemMarkup +
+      '<div class="customer-order-footer"><div><span>Order total</span><strong data-order-total>' + formatPrice(order.amountRupees) + '</strong></div><div class="customer-order-actions"><a class="button button-gold button-small" href="' + trackUrl + '">Track order</a>' + reorderButton + '</div></div>' +
+      '<p class="customer-order-note" data-order-note>Checking for the latest approval update…</p></article>';
+  }).join("");
+}
+
+async function refreshCustomerOrderStatuses(container, notice) {
+  const cards = Array.from(container.querySelectorAll("[data-customer-order]"));
+  if (!API_BASE_URL) {
+    notice.textContent = "Order tracking is not connected right now. Your saved orders remain on this device.";
+    return;
+  }
+  if (!cards.length) return;
+
+  await Promise.all(cards.map(async (card) => {
+    const statusBadge = card.querySelector("[data-order-status]");
+    const note = card.querySelector("[data-order-note]");
+    try {
+      const response = await fetch(API_BASE_URL + "/api/orders/status?orderId=" + encodeURIComponent(card.dataset.customerOrder), { cache: "no-store" });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Status is temporarily unavailable.");
+      statusBadge.classList.toggle("is-approved", result.status === "APPROVED");
+      statusBadge.classList.toggle("is-pending", result.status !== "APPROVED");
+      statusBadge.textContent = result.status === "APPROVED" ? "Approved" : "Waiting for approval";
+      note.textContent = result.status === "APPROVED"
+        ? "The store has checked this order. Use the tracking page for the latest details."
+        : result.paymentStatus === "REFERENCE_PROVIDED"
+          ? "Payment reference received. The store will update this order after reviewing it."
+          : "The store has this order and will update its approval status here.";
+      const total = card.querySelector("[data-order-total]");
+      if (total && Number.isFinite(Number(result.amountRupees))) total.textContent = formatPrice(result.amountRupees);
+    } catch (error) {
+      statusBadge.classList.remove("is-approved");
+      statusBadge.classList.add("is-pending");
+      statusBadge.textContent = "Status unavailable";
+      note.textContent = error.message || "We could not refresh this order yet. Try again shortly.";
+    }
+  }));
+  notice.textContent = "Showing orders saved in this browser. Status refreshes automatically while this page is open.";
+}
+
+function initOrderHistoryPage() {
+  const container = document.querySelector("[data-customer-orders]");
+  if (!container) return;
+  const notice = document.querySelector("[data-orders-notice]");
+  const lookupForm = document.querySelector("[data-order-lookup]");
+
+  function renderAndRefresh() {
+    renderCustomerOrderCards(container);
+    refreshCustomerOrderStatuses(container, notice);
+  }
+
+  lookupForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const input = lookupForm.elements.orderReference;
+    const rawReference = input.value.trim();
+    let orderId = rawReference;
+    try {
+      orderId = new URL(rawReference, window.location.href).searchParams.get("orderId") || rawReference;
+    } catch (error) {
+      orderId = rawReference;
+    }
+    if (!/^[A-Za-z0-9_-]{24}$/.test(orderId)) {
+      notice.textContent = "Enter a valid order reference or paste your order tracking link.";
+      return;
+    }
+    if (!API_BASE_URL) {
+      notice.textContent = "Order lookup is not connected right now. Please try again later.";
+      return;
+    }
+    const button = lookupForm.querySelector("button[type=submit]");
+    button.disabled = true;
+    notice.textContent = "Looking up this order…";
+    try {
+      const response = await fetch(API_BASE_URL + "/api/orders/status?orderId=" + encodeURIComponent(orderId), { cache: "no-store" });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "We could not find that order.");
+      saveCustomerOrderHistory({ ...result, orderId }, []);
+      input.value = "";
+      renderAndRefresh();
+      notice.textContent = "Order added to this browser’s history.";
+    } catch (error) {
+      notice.textContent = error.message || "We could not find that order.";
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  container.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-reorder-order]");
+    if (!button) return;
+    const order = readCustomerOrderHistory().find((entry) => entry.orderId === button.dataset.reorderOrder);
+    if (!order || !order.items.length) return;
+    const cart = getCart();
+    order.items.forEach((item) => {
+      const product = findProduct(item.productId);
+      if (product) cart[product.id] = (Number(cart[product.id]) || 0) + item.quantity;
+    });
+    saveCart(cart, true);
+    showToast("Items added to your cart.");
+  });
+
+  renderAndRefresh();
+  const linkedOrderId = new URLSearchParams(window.location.search).get("orderId") || "";
+  if (/^[A-Za-z0-9_-]{24}$/.test(linkedOrderId)) {
+    lookupForm.elements.orderReference.value = linkedOrderId;
+    lookupForm.requestSubmit();
+  }
+  window.setInterval(() => refreshCustomerOrderStatuses(container, notice), 20000);
+}
+
 async function submitOrder(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -806,6 +994,9 @@ async function submitOrder(event) {
         throw new Error(result.error || "We could not save the order. Please try again or contact us.");
       }
       savedOrder = result;
+      if (!saveCustomerOrderHistory(savedOrder, items)) {
+        showToast("Your order was saved, but this browser could not save its order history.");
+      }
     } catch (error) {
       showToast(error.message || "We could not save the order. Please try again.");
       if (submitButton) {
@@ -909,6 +1100,51 @@ function initPremiumMotion() {
   observeMotionTargets(document);
 }
 
+// A small pointer tilt adds depth on laptops and desktops; touch and
+// reduced-motion users keep the steady, unanimated layout.
+function initThreeDTilt() {
+  const prefersReducedMotion = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const supportsFinePointer = typeof window.matchMedia === "function" && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  if (prefersReducedMotion || !supportsFinePointer) return;
+
+  let activeSurface = null;
+  const surfaceSelector = ".product-card, .product-detail-image";
+
+  function resetTilt(surface) {
+    surface.style.removeProperty("--tilt-x");
+    surface.style.removeProperty("--tilt-y");
+    surface.classList.remove("is-tilting");
+  }
+
+  document.addEventListener("pointermove", (event) => {
+    if (event.pointerType !== "mouse" || !(event.target instanceof Element)) return;
+    const surface = event.target.closest(surfaceSelector);
+    if (activeSurface && surface !== activeSurface) resetTilt(activeSurface);
+    if (!surface) {
+      activeSurface = null;
+      return;
+    }
+
+    const bounds = surface.getBoundingClientRect();
+    if (!bounds.width || !bounds.height) return;
+    const pointerX = (event.clientX - bounds.left) / bounds.width - 0.5;
+    const pointerY = (event.clientY - bounds.top) / bounds.height - 0.5;
+    const tiltStrength = surface.matches(".product-card") ? 5 : 3;
+    surface.style.setProperty("--tilt-x", `${(-pointerY * tiltStrength).toFixed(2)}deg`);
+    surface.style.setProperty("--tilt-y", `${(pointerX * tiltStrength).toFixed(2)}deg`);
+    surface.classList.add("is-tilting");
+    activeSurface = surface;
+  }, { passive: true });
+
+  document.addEventListener("pointerout", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const surface = event.target.closest(surfaceSelector);
+    if (!surface || (event.relatedTarget instanceof Node && surface.contains(event.relatedTarget))) return;
+    resetTilt(surface);
+    if (activeSurface === surface) activeSurface = null;
+  });
+}
+
 document.addEventListener("click", (event) => {
   const addButton = event.target.closest("[data-add-product]");
   if (addButton) addToCart(addButton.dataset.addProduct, 1, addButton);
@@ -923,9 +1159,11 @@ document.addEventListener("DOMContentLoaded", () => {
   renderCartPage();
   renderCheckoutPage();
   initContactForm();
+  initOrderHistoryPage();
   updateCartCount();
   document.querySelectorAll("[data-year]").forEach((element) => {
     element.textContent = new Date().getFullYear();
   });
+  initThreeDTilt();
   initPremiumMotion();
 });
