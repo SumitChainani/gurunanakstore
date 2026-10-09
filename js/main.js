@@ -534,26 +534,30 @@ function renderCheckoutPage() {
   const summaryRows = items.map(({ product, quantity }) => '<div class="summary-line"><span>' + quantity + ' × ' + escapeHTML(product.name) + '</span><strong>' + formatPrice(product.price * quantity) + '</strong></div>').join("");
   target.innerHTML = [
     '<section class="checkout-page section"><div class="checkout-intro"><p class="eyebrow eyebrow-dark">Almost there</p><h1>Let’s get you<br />ready to ride.</h1>',
-    '<p>Share your delivery details, scan the PhonePe QR below, then send your order to us on WhatsApp for manual confirmation.</p>',
+    '<p>Share your delivery details and choose PhonePe UPI or cash on delivery. Then send your order on WhatsApp. Once it is saved, your tracking code appears on screen and in the message so you can check its approval status.</p>',
     '<p><a class="text-link text-link-dark" href="cart.html">← Back to your cart</a></p>',
     '<aside class="order-summary checkout-summary"><p class="eyebrow eyebrow-dark">Your order</p>' + summaryRows,
     '<div class="summary-line"><span>Delivery</span><strong>Confirm with support first</strong></div>',
-    '<div class="summary-total"><span>Items before PhonePe discount</span><strong>' + formatPrice(paymentTotal.subtotal) + '</strong></div>',
-    '<p class="summary-note">The QR amount below includes the 10% PhonePe discount on items. Delivery charges are confirmed separately.</p></aside></div>',
+    '<div class="summary-total"><span data-checkout-total-label>PhonePe total after 10% discount</span><strong data-checkout-total>' + formatExactPrice(paymentTotal.payable) + '</strong></div>',
+    '<p class="summary-note">PhonePe UPI gets 10% off. Cash on delivery has no PhonePe discount. Delivery charges are confirmed separately.</p></aside></div>',
     '<form class="checkout-form" data-checkout-form>',
     '<div class="form-grid"><label>Full name<input name="name" autocomplete="name" placeholder="Your full name" required /></label>',
     '<label>Phone number<input name="phone" autocomplete="tel" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" placeholder="10-digit mobile number" required /></label></div>',
     '<label>Delivery address<textarea name="address" autocomplete="street-address" placeholder="House number, street, area, city, state and PIN code" required></textarea></label>',
-    '<section class="phonepe-payment-panel" aria-labelledby="phonepe-heading"><p class="eyebrow eyebrow-dark">UPI PAYMENT</p><h2 id="phonepe-heading"><span class="phonepe-mark" aria-hidden="true">पे</span> PhonePe QR</h2>',
+    '<fieldset class="payment-method-options"><legend>Choose a payment method</legend>',
+    '<label class="payment-method-option"><input type="radio" name="paymentMethod" value="PHONEPE_UPI" checked /><span><strong>PhonePe / UPI</strong><small>Pay now by QR and get 10% off.</small></span></label>',
+    '<label class="payment-method-option"><input type="radio" name="paymentMethod" value="COD" /><span><strong>Cash on delivery</strong><small>Pay cash when the order arrives. No advance payment.</small></span></label></fieldset>',
+    '<div data-upi-payment-details><section class="phonepe-payment-panel" aria-labelledby="phonepe-heading"><p class="eyebrow eyebrow-dark">UPI PAYMENT</p><h2 id="phonepe-heading"><span class="phonepe-mark" aria-hidden="true">पे</span> PhonePe QR</h2>',
     '<p>The QR includes your cart amount after the 10% PhonePe discount. Scan it and check the payee and amount in your UPI app before confirming.</p>',
     '<input type="hidden" name="orderReference" value="' + orderReference + '" />',
     '<div class="dynamic-qr-panel"><p class="eyebrow eyebrow-dark">SCAN WITH PHONEPE OR ANY UPI APP</p><h3>Payment QR</h3>',
     '<div class="dynamic-upi-qr" data-upi-qr aria-live="polite">Creating your payment QR…</div>',
     '<p class="dynamic-qr-amount">Amount in QR (10% discount included): <strong>' + formatExactPrice(paymentTotal.payable) + '</strong></p>',
-    '<p class="dynamic-qr-note">Delivery charges are confirmed separately. UPI payments are checked manually before an order is marked paid.</p></div></section>',
-    '<label class="payment-reference-label">PhonePe transaction reference (optional, if you already paid)<input name="paymentReference" maxlength="50" placeholder="Enter the transaction ID shown in PhonePe" /></label>',
-    '<button class="button button-outline button-wide whatsapp-order-button" type="submit">Send order by WhatsApp <span aria-hidden="true">↗</span></button>',
-    '<p class="order-confirmation-note">WhatsApp orders are for manual confirmation and do not count as paid. Never share your UPI PIN or OTP with anyone.</p>',
+    '<p class="dynamic-qr-note">After paying, enter the PhonePe transaction reference if available, then send the order. Delivery charges are confirmed separately, and the store checks QR payments manually before approval.</p></div></section>',
+    '<label class="payment-reference-label">PhonePe transaction reference (optional, if you already paid)<input name="paymentReference" maxlength="50" placeholder="Enter the transaction ID shown in PhonePe" /></label></div>',
+    '<div class="cod-payment-note" data-cod-payment-note hidden><strong>Cash on delivery selected</strong><span>You will pay the order amount when it is delivered. Your request will be sent to GurunanakStore on WhatsApp for approval.</span></div>',
+    '<button class="button button-outline button-wide whatsapp-order-button" type="submit">Send Order to WhatsApp <span aria-hidden="true">↗</span></button>',
+    '<p class="order-confirmation-note" data-payment-method-note>PhonePe QR payments are checked manually and stay pending until the store approves them. Never share your UPI PIN or OTP with anyone.</p>',
     '<p class="order-confirmation-note">Order summary: ' + escapeHTML(shortOrder) + '</p></form></section>'
   ].join("");
 
@@ -561,6 +565,30 @@ function renderCheckoutPage() {
   observeMotionTargets(target);
 
   target.querySelector("[data-checkout-form]").addEventListener("submit", submitOrder);
+  const checkoutForm = target.querySelector("[data-checkout-form]");
+  checkoutForm.querySelectorAll('input[name="paymentMethod"]').forEach((input) => {
+    input.addEventListener("change", () => updateCheckoutPaymentMethod(checkoutForm, paymentTotal));
+  });
+  updateCheckoutPaymentMethod(checkoutForm, paymentTotal);
+}
+
+function updateCheckoutPaymentMethod(form, paymentTotal) {
+  const isCOD = form.elements.paymentMethod.value === "COD";
+  const upiDetails = form.querySelector("[data-upi-payment-details]");
+  const codNote = form.querySelector("[data-cod-payment-note]");
+  const totalLabel = form.closest(".checkout-page").querySelector("[data-checkout-total-label]");
+  const totalValue = form.closest(".checkout-page").querySelector("[data-checkout-total]");
+  const methodNote = form.querySelector("[data-payment-method-note]");
+  if (upiDetails) upiDetails.hidden = isCOD;
+  if (codNote) codNote.hidden = !isCOD;
+  if (isCOD && form.elements.paymentReference) form.elements.paymentReference.value = "";
+  if (totalLabel) totalLabel.textContent = isCOD ? "Cash due on delivery" : "PhonePe total after 10% discount";
+  if (totalValue) totalValue.textContent = isCOD ? formatPrice(paymentTotal.subtotal) : formatExactPrice(paymentTotal.payable);
+  if (methodNote) {
+    methodNote.textContent = isCOD
+      ? "Cash will be collected on delivery after the store approves your order. Do not send advance UPI payment for a COD order."
+      : "PhonePe QR payments are checked manually and stay pending until the store approves them. Never share your UPI PIN or OTP with anyone.";
+  }
 }
 
 async function startPhonePeCheckout(event) {
@@ -727,6 +755,10 @@ function whatsappUrl(message) {
   return "https://wa.me/" + STORE_PHONE + "?text=" + encodeURIComponent(message);
 }
 
+function codWhatsAppUrl(message) {
+  return whatsappUrl(message);
+}
+
 function openWhatsApp(message) {
   const newWindow = window.open(whatsappUrl(message), "_blank");
   if (newWindow) {
@@ -740,22 +772,32 @@ function openWhatsApp(message) {
 
 function renderManualOrderStatus(target, orderNumber, amount, paymentReference, whatsappOpened, message, savedOrder) {
   const referenceWasEntered = Boolean(paymentReference.trim());
+  const isCOD = Boolean(savedOrder && savedOrder.paymentMethod === "COD");
+  const referenceLabel = savedOrder ? "Your order tracking code" : "Order reference";
   const trackingLink = savedOrder
-    ? 'order.html?orderId=' + encodeURIComponent(savedOrder.orderId)
+    ? (savedOrder.trackingCode
+      ? 'order.html?trackingCode=' + encodeURIComponent(savedOrder.trackingCode)
+      : 'order.html?orderId=' + encodeURIComponent(savedOrder.orderId))
     : "";
   target.innerHTML = [
     '<section class="payment-result section payment-result--manual" aria-live="polite">',
     '<p class="eyebrow eyebrow-dark">ORDER DETAILS</p>',
     '<div class="payment-result-icon" data-state="prepared" aria-hidden="true"><span>✓</span></div>',
-    '<h1>' + (referenceWasEntered ? 'Order details are ready.' : 'Finish placing your order.') + '</h1>',
-    '<p class="payment-result-copy">' + (referenceWasEntered
-      ? 'Your transaction reference is included in the prepared WhatsApp message. Send that message so we can check the payment in PhonePe Business.'
-      : 'Your order details are ready in WhatsApp. Send the message to place the order, then complete payment and share its transaction reference.') + '</p>',
-    '<p class="payment-reference">Order reference: <code>' + escapeHTML(orderNumber) + '</code></p>',
+    '<h1>' + (savedOrder ? 'Your order is saved.' : referenceWasEntered ? 'Order details are ready.' : 'Finish placing your order.') + '</h1>',
+    '<p class="payment-result-copy">' + (savedOrder
+      ? isCOD
+        ? 'Keep this code and enter it on My Orders to check the approval status. Cash is due only when the order is delivered.'
+        : 'Keep this code and enter it on My Orders to check the latest status. PhonePe QR payments remain pending until the store reviews the transaction.'
+      : referenceWasEntered
+        ? 'Your transaction reference is included in the prepared WhatsApp message. Send that message so we can check the payment in PhonePe Business.'
+        : 'Your order details are ready in WhatsApp. Send the message to place the order, then complete payment and share its transaction reference.') + '</p>',
+    '<p class="payment-reference">' + referenceLabel + ': <code>' + escapeHTML(orderNumber) + '</code></p>',
     '<div class="manual-payment-status"><strong>' + (savedOrder ? 'Order status: awaiting your review' : 'Online order tracking is not connected yet') + '</strong><span>' + (savedOrder
-      ? 'The order is saved securely. A transaction reference is only a clue; the store must check the PhonePe Business account before approving payment.'
+      ? isCOD
+        ? 'This is a cash-on-delivery request. No online payment has been collected; cash is due at delivery after the store accepts the order.'
+        : 'The order is saved securely. A transaction reference is only a clue; the store must check the PhonePe Business account before approving payment.'
       : 'Send the prepared WhatsApp message to place this order. Website status tracking will start after the store’s order server is connected.') + '</span></div>',
-    '<p class="payment-result-copy payment-result-amount">PhonePe QR amount after 10% discount: <strong>' + formatExactPrice(amount) + '</strong></p>',
+    '<p class="payment-result-copy payment-result-amount">' + (isCOD ? 'Cash due on delivery: ' : 'PhonePe QR amount after 10% discount: ') + '<strong>' + (isCOD ? formatPrice(amount) : formatExactPrice(amount)) + '</strong></p>',
     '<p class="payment-result-copy">' + (savedOrder
       ? 'Your order is saved. Open the prepared WhatsApp message below and tap Send so the store receives your details.'
       : whatsappOpened
@@ -770,9 +812,16 @@ function renderManualOrderStatus(target, orderNumber, amount, paymentReference, 
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-// Customer history stays in the browser that placed the order. The server
-// only receives random order IDs when checking status, so no phone lookup can
-// reveal another customer's orders.
+// Customer history stays in this browser. A hard-to-guess reference code lets
+// customers look up one order on another device without exposing contact data.
+function normalizeOrderTrackingCode(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function isOrderTrackingCode(value) {
+  return /^GS-[A-HJ-NP-Z2-9]{16}$/.test(normalizeOrderTrackingCode(value));
+}
+
 function readCustomerOrderHistory() {
   try {
     const saved = JSON.parse(localStorage.getItem(ORDER_HISTORY_STORAGE_KEY) || "[]");
@@ -780,6 +829,8 @@ function readCustomerOrderHistory() {
     return saved.filter((order) => order && /^[A-Za-z0-9_-]{24}$/.test(String(order.orderId || "")))
       .map((order) => ({
         orderId: String(order.orderId),
+        trackingCode: isOrderTrackingCode(order.trackingCode) ? normalizeOrderTrackingCode(order.trackingCode) : "",
+        paymentMethod: order.paymentMethod === "COD" ? "COD" : "PHONEPE_UPI",
         createdAt: String(order.createdAt || ""),
         amountRupees: Number(order.amountRupees) || 0,
         status: String(order.status || "PENDING"),
@@ -811,6 +862,10 @@ function saveCustomerOrderHistory(order, items) {
   const amountRupees = Number(order.amountRupees);
   const savedOrder = {
     orderId,
+    trackingCode: isOrderTrackingCode(order.trackingCode)
+      ? normalizeOrderTrackingCode(order.trackingCode)
+      : (previous ? previous.trackingCode : ""),
+    paymentMethod: order.paymentMethod === "COD" || (previous && previous.paymentMethod === "COD") ? "COD" : "PHONEPE_UPI",
     createdAt: String(order.createdAt || (previous && previous.createdAt) || new Date().toISOString()),
     amountRupees: Number.isFinite(amountRupees) && amountRupees >= 0 ? amountRupees : (previous ? previous.amountRupees : 0),
     status: String(order.status || (previous && previous.status) || "PENDING"),
@@ -832,7 +887,7 @@ function orderDateLabel(value) {
 function renderCustomerOrderCards(container) {
   const history = readCustomerOrderHistory();
   if (!history.length) {
-    container.innerHTML = '<div class="orders-empty"><span class="empty-icon" aria-hidden="true">GS</span><h2>No saved orders yet</h2><p>Orders you place in this browser will appear here. You can also add an order using its tracking link or 24-character order reference.</p><a class="button button-gold" href="shop.html">Explore the shop <span aria-hidden="true">→</span></a></div>';
+    container.innerHTML = '<div class="orders-empty"><span class="empty-icon" aria-hidden="true">GS</span><h2>No saved orders yet</h2><p>Orders you place in this browser will appear here. Enter the unique tracking code from your order message to add an order from any device.</p><a class="button button-gold" href="shop.html">Explore the shop <span aria-hidden="true">→</span></a></div>';
     return;
   }
 
@@ -840,12 +895,14 @@ function renderCustomerOrderCards(container) {
     const itemMarkup = order.items.length
       ? '<ul class="customer-order-items">' + order.items.map((item) => '<li><span>' + escapeHTML(item.name) + ' × ' + item.quantity + '</span><strong>' + formatPrice(item.price * item.quantity) + '</strong></li>').join("") + '</ul>'
       : '<p class="customer-order-note">Items are not saved on this device for this older order.</p>';
-    const trackUrl = "order.html?orderId=" + encodeURIComponent(order.orderId);
+    const trackUrl = order.trackingCode
+      ? "order.html?trackingCode=" + encodeURIComponent(order.trackingCode)
+      : "order.html?orderId=" + encodeURIComponent(order.orderId);
     const reorderButton = order.items.length
       ? '<button class="button button-outline button-small" type="button" data-reorder-order="' + escapeHTML(order.orderId) + '">Buy again</button>'
       : '';
     return '<article class="customer-order-card" data-customer-order="' + escapeHTML(order.orderId) + '">' +
-      '<div class="customer-order-heading"><div><p class="eyebrow eyebrow-dark">ORDER ' + escapeHTML(order.orderId.slice(0, 8).toUpperCase()) + '</p><time>' + escapeHTML(orderDateLabel(order.createdAt)) + '</time></div><span class="order-status-badge is-pending" data-order-status>Checking status…</span></div>' +
+      '<div class="customer-order-heading"><div><p class="eyebrow eyebrow-dark">REFERENCE ' + escapeHTML(order.trackingCode || order.orderId.slice(0, 8).toUpperCase()) + '</p><time>' + escapeHTML(orderDateLabel(order.createdAt)) + '</time></div><span class="order-status-badge is-pending" data-order-status>Checking status…</span></div>' +
       itemMarkup +
       '<div class="customer-order-footer"><div><span>Order total</span><strong data-order-total>' + formatPrice(order.amountRupees) + '</strong></div><div class="customer-order-actions"><a class="button button-gold button-small" href="' + trackUrl + '">Track order</a>' + reorderButton + '</div></div>' +
       '<p class="customer-order-note" data-order-note>Checking for the latest approval update…</p></article>';
@@ -870,11 +927,15 @@ async function refreshCustomerOrderStatuses(container, notice) {
       statusBadge.classList.toggle("is-approved", result.status === "APPROVED");
       statusBadge.classList.toggle("is-pending", result.status !== "APPROVED");
       statusBadge.textContent = result.status === "APPROVED" ? "Approved" : "Waiting for approval";
-      note.textContent = result.status === "APPROVED"
-        ? "The store has checked this order. Use the tracking page for the latest details."
-        : result.paymentStatus === "REFERENCE_PROVIDED"
-          ? "Payment reference received. The store will update this order after reviewing it."
-          : "The store has this order and will update its approval status here.";
+      note.textContent = result.paymentMethod === "COD"
+        ? result.status === "APPROVED"
+          ? "Your COD order is accepted. Pay cash when it is delivered."
+          : "Your COD request is waiting for store approval. No advance UPI payment is needed."
+        : result.status === "APPROVED"
+          ? "The store has checked this order. Use the tracking page for the latest details."
+          : result.paymentStatus === "REFERENCE_PROVIDED"
+            ? "Payment reference received. The store will update this order after reviewing it."
+            : "The store has this order and will update its approval status here.";
       const total = card.querySelector("[data-order-total]");
       if (total && Number.isFinite(Number(result.amountRupees))) total.textContent = formatPrice(result.amountRupees);
     } catch (error) {
@@ -902,14 +963,22 @@ function initOrderHistoryPage() {
     event.preventDefault();
     const input = lookupForm.elements.orderReference;
     const rawReference = input.value.trim();
+    let trackingCode = normalizeOrderTrackingCode(rawReference);
     let orderId = rawReference;
     try {
-      orderId = new URL(rawReference, window.location.href).searchParams.get("orderId") || rawReference;
+      const parsedUrl = new URL(rawReference, window.location.href);
+      const linkedTrackingCode = parsedUrl.searchParams.get("trackingCode");
+      const linkedOrderId = parsedUrl.searchParams.get("orderId");
+      if (linkedTrackingCode || linkedOrderId) {
+        trackingCode = normalizeOrderTrackingCode(linkedTrackingCode || "");
+        orderId = linkedOrderId || "";
+      }
     } catch (error) {
-      orderId = rawReference;
+      // The customer may have entered the code itself instead of a full link.
     }
-    if (!/^[A-Za-z0-9_-]{24}$/.test(orderId)) {
-      notice.textContent = "Enter a valid order reference or paste your order tracking link.";
+    const useTrackingCode = isOrderTrackingCode(trackingCode);
+    if (!useTrackingCode && !/^[A-Za-z0-9_-]{24}$/.test(orderId)) {
+      notice.textContent = "Enter the unique code from your order message, or paste an older order tracking link.";
       return;
     }
     if (!API_BASE_URL) {
@@ -920,13 +989,15 @@ function initOrderHistoryPage() {
     button.disabled = true;
     notice.textContent = "Looking up this order…";
     try {
-      const response = await fetch(API_BASE_URL + "/api/orders/status?orderId=" + encodeURIComponent(orderId), { cache: "no-store" });
+      const lookupKey = useTrackingCode ? "trackingCode" : "orderId";
+      const lookupValue = useTrackingCode ? trackingCode : orderId;
+      const response = await fetch(API_BASE_URL + "/api/orders/status?" + lookupKey + "=" + encodeURIComponent(lookupValue), { cache: "no-store" });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "We could not find that order.");
-      saveCustomerOrderHistory({ ...result, orderId }, []);
+      saveCustomerOrderHistory(result, []);
       input.value = "";
       renderAndRefresh();
-      notice.textContent = "Order added to this browser’s history.";
+      notice.textContent = "Order found. Its latest status is shown below.";
     } catch (error) {
       notice.textContent = error.message || "We could not find that order.";
     } finally {
@@ -949,9 +1020,10 @@ function initOrderHistoryPage() {
   });
 
   renderAndRefresh();
-  const linkedOrderId = new URLSearchParams(window.location.search).get("orderId") || "";
-  if (/^[A-Za-z0-9_-]{24}$/.test(linkedOrderId)) {
-    lookupForm.elements.orderReference.value = linkedOrderId;
+  const linkedParams = new URLSearchParams(window.location.search);
+  const linkedOrderReference = linkedParams.get("trackingCode") || linkedParams.get("orderId") || "";
+  if (isOrderTrackingCode(linkedOrderReference) || /^[A-Za-z0-9_-]{24}$/.test(linkedOrderReference)) {
+    lookupForm.elements.orderReference.value = linkedOrderReference;
     lookupForm.requestSubmit();
   }
   window.setInterval(() => refreshCustomerOrderStatuses(container, notice), 20000);
@@ -969,9 +1041,21 @@ async function submitOrder(event) {
     return;
   }
   const details = Object.fromEntries(new FormData(form));
+  const paymentMethod = String(details.paymentMethod || "PHONEPE_UPI").toUpperCase() === "COD" ? "COD" : "PHONEPE_UPI";
+  const paymentReference = paymentMethod === "COD" ? "" : String(details.paymentReference || "").trim();
   const submitButton = form.querySelector('button[type="submit"]');
   const initialButtonText = submitButton ? submitButton.innerHTML : "";
   let savedOrder = null;
+
+  if (paymentMethod === "COD" && window.location.protocol === "file:") {
+    showToast("COD orders must be saved securely first. Open checkout at https://gurunanakstore.shop/checkout.html; this local file cannot connect to the order service.");
+    return;
+  }
+
+  if (paymentMethod === "COD" && !API_BASE_URL) {
+    showToast("The order service is not connected, so we cannot safely place this COD order yet.");
+    return;
+  }
 
   if (API_BASE_URL) {
     if (submitButton) {
@@ -985,20 +1069,34 @@ async function submitOrder(event) {
         body: JSON.stringify({
           items: items.map(({ product, quantity }) => ({ productId: product.id, quantity })),
           customer: { name: details.name, phone: details.phone, address: details.address },
+          paymentMethod,
           checkoutReference: details.orderReference,
-          paymentReference: details.paymentReference
+          paymentReference
         })
       });
       const result = await response.json();
       if (!response.ok || !result.orderId || !Number.isFinite(Number(result.amountRupees))) {
         throw new Error(result.error || "We could not save the order. Please try again or contact us.");
       }
+      if (paymentMethod === "COD" && (result.paymentMethod !== "COD" || !isOrderTrackingCode(result.trackingCode))) {
+        throw new Error("The order server did not confirm COD support. Please contact the store before placing this order again.");
+      }
       savedOrder = result;
       if (!saveCustomerOrderHistory(savedOrder, items)) {
         showToast("Your order was saved, but this browser could not save its order history.");
       }
     } catch (error) {
-      showToast(error.message || "We could not save the order. Please try again.");
+      const isNetworkFailure = error && error.name === "TypeError";
+      const customerMessage = isNetworkFailure
+        ? "We could not connect to the order service. Check your internet connection or try again shortly. No order was confirmed."
+        : (error.message || "We could not save the order. Please try again.");
+      console.error("[GurunanakStore checkout] Order request failed", {
+        endpoint: API_BASE_URL + "/api/orders",
+        pageOrigin: window.location.origin,
+        paymentMethod,
+        errorType: error && error.name ? error.name : "Error"
+      });
+      showToast(customerMessage);
       if (submitButton) {
         submitButton.disabled = false;
         submitButton.innerHTML = initialButtonText;
@@ -1007,25 +1105,31 @@ async function submitOrder(event) {
     }
   }
 
-  const orderNumber = String(savedOrder ? savedOrder.orderId : details.orderReference || "GS" + Date.now().toString().slice(-10));
+  const isCOD = paymentMethod === "COD";
+  const orderNumber = String(savedOrder ? (savedOrder.trackingCode || savedOrder.orderId) : details.orderReference || "GS" + Date.now().toString().slice(-10));
+  const finalAmount = savedOrder ? Number(savedOrder.amountRupees) : isCOD ? cartTotal() : phonePePaymentTotal(items).payable;
   const itemLines = items.map(({ product, quantity }) => "- " + product.name + " x " + quantity + " — " + formatPrice(product.price * quantity)).join("\n");
   const message = "Namaste " + STORE_NAME + ", I would like to place an order.\n\n" +
-    "Order reference: " + orderNumber + "\n\n" + itemLines + "\n\n" +
-    (savedOrder ? "UPI QR reference: " + savedOrder.checkoutReference + "\n" + "Order status page: " + new URL("order.html?orderId=" + encodeURIComponent(savedOrder.orderId), window.location.href).toString() + "\n\n" : "") +
-    "Items total before PhonePe discount: " + formatPrice(cartTotal()) + "\n" +
-    "PhonePe QR amount after 10% discount (if paying by QR): " + formatExactPrice(phonePePaymentTotal(items).payable) + "\n" +
+    (savedOrder ? "Order tracking code: " : "Order reference: ") + orderNumber + "\n\n" + itemLines + "\n\n" +
+    (savedOrder ? (savedOrder.checkoutReference ? "UPI QR reference: " + savedOrder.checkoutReference + "\n" : "") + "Order status page: " + new URL(savedOrder.trackingCode ? "order.html?trackingCode=" + encodeURIComponent(savedOrder.trackingCode) : "order.html?orderId=" + encodeURIComponent(savedOrder.orderId), window.location.href).toString() + "\n\n" : "") +
+    (isCOD
+      ? "Payment method: Cash on Delivery\nCash due at delivery: " + formatPrice(finalAmount) + "\nPayment: I will pay in cash when the order is delivered. Please approve my COD order.\n\n"
+      : "Payment method: PhonePe / UPI\nItems total before PhonePe discount: " + formatPrice(cartTotal()) + "\nPhonePe QR amount after 10% discount: " + formatExactPrice(phonePePaymentTotal(items).payable) + "\n" +
+        "PhonePe transaction reference (if already paid): " + (paymentReference || "Not provided") + "\n\n") +
     "Delivery: Please confirm the availability and charge for my address.\n" +
-    "Payment: Please verify any PhonePe / UPI transfer manually before marking this order paid.\n" +
-    "PhonePe transaction reference (if already paid): " + (details.paymentReference.trim() || "Not provided") + "\n\n" +
     "Name: " + details.name + "\n" +
     "Phone: " + details.phone + "\n" +
     "Delivery address: " + details.address + "\n\n" +
     "Please confirm stock, fit, delivery charge, and final total before payment.";
   // When an API request was needed, offer a normal user-clickable WhatsApp link
   // after the save completes so popup blockers do not swallow the message.
+  if (savedOrder && isCOD) {
+    // The customer still reviews and sends the pre-filled order message in WhatsApp.
+    window.location.assign(codWhatsAppUrl(message));
+    return;
+  }
   const whatsappOpened = savedOrder ? false : openWhatsApp(message);
-  const finalAmount = savedOrder ? Number(savedOrder.amountRupees) : phonePePaymentTotal(items).payable;
-  renderManualOrderStatus(target, orderNumber, finalAmount, details.paymentReference, whatsappOpened, message, savedOrder);
+  renderManualOrderStatus(target, orderNumber, finalAmount, paymentReference, whatsappOpened, message, savedOrder);
 }
 
 function initContactForm() {
