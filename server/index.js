@@ -471,7 +471,13 @@ const server = http.createServer(async (request, response) => {
       const reply = await requestSupportReply(messages, { apiKey: OPENAI_API_KEY, model: OPENAI_MODEL });
       return sendJson(response, 200, { reply }, origin);
     } catch (error) {
-      console.error("Support assistant request failed:", error.providerStatus || error.providerError || "invalid provider response");
+      const safeDiagnostics = [
+        Number(error.providerStatus) ? `http_${Number(error.providerStatus)}` : "",
+        error.providerCode || "",
+        error.providerType || "",
+        error.providerError || ""
+      ].filter(Boolean);
+      console.error("Support assistant request failed:", safeDiagnostics.join(" ") || "invalid provider response");
       const status = Number(error.statusCode) || 502;
       return sendJson(response, status, {
         error: status === 400 ? error.message : "The support assistant could not reply. Please try again or contact us on WhatsApp."

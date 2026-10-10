@@ -1180,6 +1180,12 @@ function initWhatsAppLinks() {
 
 function getLocalSupportAnswer(message) {
   const question = String(message || "").toLowerCase();
+  if (/\b(hello|hi|hey|namaste)\b|\bwho are you\b|\bwhat (is|does) your (job|role)\b|\bhow can you help\b|tumhara kaam|aapka kaam|kaise madad/.test(question)) {
+    if (/namaste|tumhara|aapka|kaise|kya|madad|hoon|hai\b/.test(question)) {
+      return "Namaste! Main GurunanakStore ka support assistant hoon. Main products, order karne, PhonePe/UPI ya COD, aur tracking page use karne mein madad kar sakta hoon. Main private order status ya payment approve nahi kar sakta; uske liye WhatsApp par hamari team se baat karein.";
+    }
+    return "Hi! I’m GurunanakStore’s support assistant. I can help with products, placing an order, PhonePe/UPI or COD, and using the order-tracking page. I can’t look up private order details or approve payments, but our team can help on WhatsApp.";
+  }
   if (/track|tracking|status|my order|order code|order id|ऑर्डर/.test(question)) {
     return "To check an order, open My Orders and enter the unique tracking code from your order message. I can’t look up private order details in this chat.";
   }
