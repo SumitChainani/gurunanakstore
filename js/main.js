@@ -227,9 +227,56 @@ function addToCart(productId, quantity, button) {
   const safeQuantity = Math.max(1, Math.floor(Number(quantity) || 1));
   cart[product.id] = (Number(cart[product.id]) || 0) + safeQuantity;
   saveCart(cart, true);
+  animateAddedProductToCart(button);
   showAddedButtonFeedback(button);
   const shortName = product.name.length > 42 ? product.name.slice(0, 39).trimEnd() + "…" : product.name;
   showToast(shortName + " added to your cart.");
+}
+
+// Fly a small copy of the exact product photo into the cart badge after adding.
+// This is visual feedback only; cart prices and contents still use the catalog above.
+function animateAddedProductToCart(button) {
+  const reducedMotion = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reducedMotion || !button || typeof Element.prototype.animate !== "function") return;
+
+  const sourceImage = button.closest(".product-card")?.querySelector(".product-image-wrap img")
+    || document.querySelector("[data-product-main-image]");
+  const cartTarget = document.querySelector(".header-cart [data-cart-count]")
+    || document.querySelector(".header-cart");
+  if (!sourceImage || !cartTarget) return;
+
+  const source = sourceImage.getBoundingClientRect();
+  const target = cartTarget.getBoundingClientRect();
+  if (!source.width || !source.height || !target.width || !target.height) return;
+
+  const image = document.createElement("img");
+  image.className = "cart-flight-image";
+  image.src = sourceImage.currentSrc || sourceImage.src;
+  image.alt = "";
+  image.setAttribute("aria-hidden", "true");
+  image.style.left = source.left + "px";
+  image.style.top = source.top + "px";
+  image.style.width = source.width + "px";
+  image.style.height = source.height + "px";
+  document.body.appendChild(image);
+
+  const travelX = target.left + target.width / 2 - (source.left + source.width / 2);
+  const travelY = target.top + target.height / 2 - (source.top + source.height / 2);
+  const flight = image.animate([
+    { transform: "translate3d(0, 0, 0) scale(1) rotate(0deg)", opacity: 1 },
+    { offset: 0.32, transform: `translate3d(${travelX * 0.32}px, ${travelY * 0.32}px, 0) scale(.82) rotate(-5deg)`, opacity: 1 },
+    { transform: `translate3d(${travelX}px, ${travelY}px, 0) scale(.08) rotate(8deg)`, opacity: 0.25 }
+  ], { duration: 720, easing: "cubic-bezier(.18,.74,.2,1)", fill: "forwards" });
+
+  flight.onfinish = () => {
+    image.remove();
+    cartTarget.classList.remove("cart-count-arrived");
+    void cartTarget.offsetWidth;
+    cartTarget.classList.add("cart-count-arrived");
+    window.clearTimeout(cartTarget.arrivalTimer);
+    cartTarget.arrivalTimer = window.setTimeout(() => cartTarget.classList.remove("cart-count-arrived"), 700);
+  };
+  flight.oncancel = () => image.remove();
 }
 
 function showAddedButtonFeedback(button) {
@@ -257,6 +304,52 @@ function changeQuantity(productId, change) {
     cart[product.id] = nextQuantity;
   }
   saveCart(cart);
+}
+
+// Plus and minus use separate feedback so a quantity change is easy to notice.
+function animateQuantityFeedback(control, button, change) {
+  const value = control && control.querySelector("span");
+  if (!control || !button || !value) return;
+
+  button.classList.remove("quantity-action-plus", "quantity-action-minus");
+  value.classList.remove("quantity-value-plus", "quantity-value-minus");
+  void value.offsetWidth;
+  const direction = Number(change) > 0 ? "plus" : "minus";
+  button.classList.add("quantity-action-" + direction);
+  value.classList.add("quantity-value-" + direction);
+
+  window.clearTimeout(control.quantityFeedbackTimer);
+  control.quantityFeedbackTimer = window.setTimeout(() => {
+    button.classList.remove("quantity-action-plus", "quantity-action-minus");
+    value.classList.remove("quantity-value-plus", "quantity-value-minus");
+  }, 520);
+}
+
+function refreshCartPageTotals(target) {
+  const items = cartItems();
+  const count = items.reduce((total, item) => total + item.quantity, 0);
+  const subtotal = itemsSubtotal(items);
+  const itemSummary = target.querySelector(".summary-line");
+  const orderTotal = target.querySelector(".summary-total strong");
+
+  if (itemSummary) {
+    const label = itemSummary.querySelector("span");
+    const amount = itemSummary.querySelector("strong");
+    if (label) label.textContent = "Items (" + count + ")";
+    if (amount) amount.textContent = formatPrice(subtotal);
+  }
+  if (orderTotal) orderTotal.textContent = formatPrice(subtotal);
+
+  target.querySelectorAll(".cart-item").forEach((row) => {
+    const button = row.querySelector("[data-cart-change]");
+    if (!button) return;
+    const product = findProduct(button.dataset.cartChange);
+    const quantity = Number(getCart()[button.dataset.cartChange]) || 0;
+    const value = row.querySelector(".quantity-control span");
+    const lineTotal = row.querySelector(".cart-line-total");
+    if (quantity > 0 && value) value.textContent = String(quantity);
+    if (product && lineTotal) lineTotal.textContent = formatPrice(product.price * quantity);
+  });
 }
 
 function removeFromCart(productId) {
@@ -416,28 +509,62 @@ function initShop() {
   if (!grid) return;
   const search = document.querySelector("[data-product-search]");
   const filterButtons = Array.from(document.querySelectorAll("[data-filter]"));
+  const filterList = document.querySelector(".filter-list");
   const noProducts = document.querySelector("[data-no-products]");
   const requestedCategory = new URLSearchParams(window.location.search).get("category");
   let activeFilter = filterButtons.some((button) => button.dataset.filter === requestedCategory) ? requestedCategory : "All";
   let searchTerm = "";
+  let filterAnimationTimer;
+  const filterColors = {
+    "All": { accent: "#b38b4d", soft: "rgba(179,139,77,.14)", ink: "#72572f" },
+    "Rider gear": { accent: "#35776d", soft: "rgba(53,119,109,.13)", ink: "#20554d" },
+    "Protection": { accent: "#4c70a5", soft: "rgba(76,112,165,.13)", ink: "#395880" },
+    "Travel": { accent: "#ad743b", soft: "rgba(173,116,59,.14)", ink: "#805629" },
+    "Electronics": { accent: "#7761a2", soft: "rgba(119,97,162,.13)", ink: "#59447f" },
+    "Security": { accent: "#48795b", soft: "rgba(72,121,91,.13)", ink: "#355d43" }
+  };
 
-  function render() {
+  function render(animateSwitch = false) {
     const visibleProducts = PRODUCTS.filter((product) => {
       const categoryMatches = activeFilter === "All" || product.category === activeFilter;
       const searchContent = (product.name + " " + product.category + " " + product.shortDescription).toLowerCase();
       return categoryMatches && searchContent.includes(searchTerm);
     });
+    const colors = filterColors[activeFilter] || filterColors.All;
+    [filterList, grid].filter(Boolean).forEach((element) => {
+      element.style.setProperty("--filter-accent", colors.accent);
+      element.style.setProperty("--filter-accent-soft", colors.soft);
+      element.style.setProperty("--filter-accent-ink", colors.ink);
+    });
+    grid.dataset.activeFilter = activeFilter;
     grid.innerHTML = visibleProducts.map(productCard).join("");
+    const cards = Array.from(grid.querySelectorAll(".product-card"));
+    window.clearTimeout(filterAnimationTimer);
+    grid.classList.remove("is-filter-refreshing");
+    const reducedMotion = typeof window.matchMedia === "function"
+      && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (animateSwitch && !reducedMotion && cards.length) {
+      cards.forEach((card, index) => card.style.setProperty("--filter-index", String(Math.min(index, 12))));
+      void grid.offsetWidth;
+      grid.classList.add("is-filter-refreshing");
+      filterAnimationTimer = window.setTimeout(() => grid.classList.remove("is-filter-refreshing"), 1150);
+    }
     noProducts.hidden = visibleProducts.length > 0;
     observeMotionTargets(grid);
   }
 
   filterButtons.forEach((button) => {
     button.classList.toggle("is-active", button.dataset.filter === activeFilter);
+    button.setAttribute("aria-pressed", String(button.dataset.filter === activeFilter));
     button.addEventListener("click", () => {
+      if (button.dataset.filter === activeFilter) return;
       activeFilter = button.dataset.filter;
-      filterButtons.forEach((item) => item.classList.toggle("is-active", item === button));
-      render();
+      filterButtons.forEach((item) => {
+        const selected = item === button;
+        item.classList.toggle("is-active", selected);
+        item.setAttribute("aria-pressed", String(selected));
+      });
+      render(true);
     });
   });
 
@@ -495,7 +622,7 @@ function initProductPage() {
     '<dl class="product-specs"><div><dt>Fit and details</dt><dd>' + escapeHTML(product.fitment) + '</dd></div>',
     '<div><dt>Delivery</dt><dd>Charges and availability confirmed before payment</dd></div></dl>',
     '<div class="product-buy-row"><div class="quantity-control" aria-label="Product quantity">',
-    '<button type="button" data-detail-quantity="-1" aria-label="Decrease quantity">−</button><span data-detail-quantity-value>1</span>',
+    '<button type="button" data-detail-quantity="-1" aria-label="Decrease quantity">−</button><span data-detail-quantity-value aria-live="polite" aria-atomic="true">1</span>',
     '<button type="button" data-detail-quantity="1" aria-label="Increase quantity">+</button></div>',
     '<button class="button button-gold" type="button" data-add-detail="' + product.id + '">Add to cart <span aria-hidden="true">→</span></button></div>',
     '<p class="fitment-note">Not sure this is the right fit? <a href="#" data-whatsapp-link data-wa-message="Hi GurunanakStore, can you help me check ' + escapeHTML(product.name) + ' for my bike?">Ask us on WhatsApp</a>.</p>',
@@ -523,7 +650,9 @@ function initProductPage() {
   target.querySelectorAll("[data-detail-quantity]").forEach((button) => {
     button.addEventListener("click", () => {
       const count = target.querySelector("[data-detail-quantity-value]");
-      count.textContent = Math.max(1, Number(count.textContent) + Number(button.dataset.detailQuantity));
+      const change = Number(button.dataset.detailQuantity);
+      count.textContent = Math.max(1, Number(count.textContent) + change);
+      animateQuantityFeedback(button.closest(".quantity-control"), button, change);
     });
   });
   target.querySelector("[data-add-detail]").addEventListener("click", (event) => {
@@ -547,7 +676,7 @@ function renderCartPage() {
     '<article class="cart-item"><img src="' + escapeHTML(productGalleryImages(product)[0].src) + '" alt="' + escapeHTML(productGalleryImages(product)[0].alt) + '" />',
     '<div class="cart-item-info"><p class="product-category">' + escapeHTML(product.category) + '</p><h3>' + escapeHTML(product.name) + '</h3><strong>' + formatPrice(product.price) + ' each</strong></div>',
     '<div class="cart-item-actions"><div class="quantity-control" aria-label="' + escapeHTML(product.name) + ' quantity">',
-    '<button type="button" data-cart-change="' + product.id + '" data-change="-1" aria-label="Decrease ' + escapeHTML(product.name) + ' quantity">−</button><span>' + quantity + '</span>',
+    '<button type="button" data-cart-change="' + product.id + '" data-change="-1" aria-label="Decrease ' + escapeHTML(product.name) + ' quantity">−</button><span aria-live="polite" aria-atomic="true">' + quantity + '</span>',
     '<button type="button" data-cart-change="' + product.id + '" data-change="1" aria-label="Increase ' + escapeHTML(product.name) + ' quantity">+</button></div>',
     '<button class="remove-button" type="button" data-remove-product="' + product.id + '">Remove</button></div>',
     '<strong class="cart-line-total">' + formatPrice(product.price * quantity) + '</strong></article>'
@@ -568,8 +697,20 @@ function renderCartPage() {
 
   target.querySelectorAll("[data-cart-change]").forEach((button) => {
     button.addEventListener("click", () => {
-      changeQuantity(button.dataset.cartChange, button.dataset.change);
-      renderCartPage();
+      const change = Number(button.dataset.change);
+      const productId = button.dataset.cartChange;
+      const row = button.closest(".cart-item");
+      const control = button.closest(".quantity-control");
+      changeQuantity(productId, change);
+      animateQuantityFeedback(control, button, change);
+      refreshCartPageTotals(target);
+
+      if (!getCart()[productId]) {
+        row.classList.add("is-removing");
+        row.querySelectorAll("button").forEach((rowButton) => { rowButton.disabled = true; });
+        window.clearTimeout(target.cartPageRefreshTimer);
+        target.cartPageRefreshTimer = window.setTimeout(() => renderCartPage(), 260);
+      }
     });
   });
   target.querySelectorAll("[data-remove-product]").forEach((button) => {
@@ -1456,7 +1597,7 @@ function initThreeDTilt() {
   if (prefersReducedMotion || !supportsFinePointer) return;
 
   let activeSurface = null;
-  const surfaceSelector = ".product-card, .product-detail-image";
+  const surfaceSelector = ".product-card, .product-detail-image, .hero-visual, .category-row a, .order-summary, .checkout-form, .payment-method-option";
 
   function resetTilt(surface) {
     surface.style.removeProperty("--tilt-x");
@@ -1477,9 +1618,15 @@ function initThreeDTilt() {
     if (!bounds.width || !bounds.height) return;
     const pointerX = (event.clientX - bounds.left) / bounds.width - 0.5;
     const pointerY = (event.clientY - bounds.top) / bounds.height - 0.5;
-    const tiltStrength = surface.matches(".product-card") ? 5 : 3;
+    const tiltStrength = surface.matches(".product-card") ? 5
+      : surface.matches(".product-detail-image") ? 3
+        : surface.matches(".hero-visual") ? 1.4
+          : surface.matches(".category-row a") ? 1.8
+            : surface.matches(".payment-method-option") ? 1.2 : 0.8;
     surface.style.setProperty("--tilt-x", `${(-pointerY * tiltStrength).toFixed(2)}deg`);
     surface.style.setProperty("--tilt-y", `${(pointerX * tiltStrength).toFixed(2)}deg`);
+    surface.style.setProperty("--pointer-x", `${Math.max(0, Math.min(100, pointerX * 100 + 50)).toFixed(1)}%`);
+    surface.style.setProperty("--pointer-y", `${Math.max(0, Math.min(100, pointerY * 100 + 50)).toFixed(1)}%`);
     surface.classList.add("is-tilting");
     activeSurface = surface;
   }, { passive: true });
