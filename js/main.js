@@ -556,7 +556,7 @@ function renderCheckoutPage() {
     '<p class="dynamic-qr-note">After paying, enter the PhonePe transaction reference if available, then send the order. Delivery charges are confirmed separately, and the store checks QR payments manually before approval.</p></div></section>',
     '<label class="payment-reference-label">PhonePe transaction reference (optional, if you already paid)<input name="paymentReference" maxlength="50" placeholder="Enter the transaction ID shown in PhonePe" /></label></div>',
     '<div class="cod-payment-note" data-cod-payment-note hidden><strong>Cash on delivery selected</strong><span>You will pay the order amount when it is delivered. Your request will be sent to GurunanakStore on WhatsApp for approval.</span></div>',
-    '<button class="button button-outline button-wide whatsapp-order-button" type="submit">Send Order to WhatsApp <span aria-hidden="true">↗</span></button>',
+    '<button class="button button-outline button-wide whatsapp-order-button" type="submit"><span data-checkout-submit-label>Send for Order Approval</span> <span aria-hidden="true">↗</span></button>',
     '<p class="order-confirmation-note" data-payment-method-note>PhonePe QR payments are checked manually and stay pending until the store approves them. Never share your UPI PIN or OTP with anyone.</p>',
     '<p class="order-confirmation-note">Order summary: ' + escapeHTML(shortOrder) + '</p></form></section>'
   ].join("");
@@ -579,8 +579,10 @@ function updateCheckoutPaymentMethod(form, paymentTotal) {
   const totalLabel = form.closest(".checkout-page").querySelector("[data-checkout-total-label]");
   const totalValue = form.closest(".checkout-page").querySelector("[data-checkout-total]");
   const methodNote = form.querySelector("[data-payment-method-note]");
+  const submitLabel = form.querySelector("[data-checkout-submit-label]");
   if (upiDetails) upiDetails.hidden = isCOD;
   if (codNote) codNote.hidden = !isCOD;
+  if (submitLabel) submitLabel.textContent = isCOD ? "Send Order to WhatsApp" : "Send for Order Approval";
   if (isCOD && form.elements.paymentReference) form.elements.paymentReference.value = "";
   if (totalLabel) totalLabel.textContent = isCOD ? "Cash due on delivery" : "PhonePe total after 10% discount";
   if (totalValue) totalValue.textContent = isCOD ? formatPrice(paymentTotal.subtotal) : formatExactPrice(paymentTotal.payable);
