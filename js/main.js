@@ -581,6 +581,10 @@ function updateCheckoutPaymentMethod(form, paymentTotal) {
   const methodNote = form.querySelector("[data-payment-method-note]");
   const submitLabel = form.querySelector("[data-checkout-submit-label]");
   const paymentReference = form.elements.paymentReference;
+  form.querySelectorAll(".payment-method-option").forEach((option) => {
+    const input = option.querySelector('input[name="paymentMethod"]');
+    option.classList.toggle("is-selected", Boolean(input && input.checked));
+  });
   if (upiDetails) upiDetails.hidden = isCOD;
   if (codNote) codNote.hidden = !isCOD;
   if (submitLabel) submitLabel.textContent = isCOD ? "Send Order to WhatsApp" : "Send for Order Approval";
@@ -589,7 +593,12 @@ function updateCheckoutPaymentMethod(form, paymentTotal) {
     if (isCOD) paymentReference.value = "";
   }
   if (totalLabel) totalLabel.textContent = isCOD ? "Cash due on delivery" : "PhonePe total after 10% discount";
-  if (totalValue) totalValue.textContent = isCOD ? formatPrice(paymentTotal.subtotal) : formatExactPrice(paymentTotal.payable);
+  if (totalValue) {
+    totalValue.textContent = isCOD ? formatPrice(paymentTotal.subtotal) : formatExactPrice(paymentTotal.payable);
+    totalValue.classList.remove("checkout-total-pop");
+    void totalValue.offsetWidth;
+    totalValue.classList.add("checkout-total-pop");
+  }
   if (methodNote) {
     methodNote.textContent = isCOD
       ? "Cash will be collected on delivery after the store approves your order. Do not send advance UPI payment for a COD order."
