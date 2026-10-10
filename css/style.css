@@ -41,6 +41,20 @@ h1, h2, h3, p { margin-top: 0; }
 .logo-mark { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--gold); color: var(--gold); font-family: var(--serif); font-size: 22px; line-height: 1; }
 .logo-word { display: grid; font-family: var(--display); font-size: 17px; font-weight: 700; letter-spacing: .08em; line-height: .9; }
 .logo-word small { margin-top: 5px; color: var(--gold); font-family: var(--sans); font-size: 8px; font-weight: 600; letter-spacing: .27em; }
+/* A quick 3D entrance and a soft gold sweep add polish without slowing navigation. */
+@media (prefers-reduced-motion: no-preference) {
+  .logo { perspective: 600px; }
+  .logo-mark { position: relative; overflow: hidden; isolation: isolate; transform-origin: center; transition: transform .42s cubic-bezier(.2,.7,.2,1), border-color .28s ease, color .28s ease, background-color .28s ease, box-shadow .28s ease; }
+  .logo-mark::after { position: absolute; inset: 0; background: linear-gradient(115deg, transparent 16%, rgba(255,255,255,.28) 50%, transparent 84%); content: ""; pointer-events: none; transform: translateX(-135%); }
+  .logo-word { transition: transform .32s ease; }
+  .logo-word small { transition: letter-spacing .32s ease; }
+  .logo:hover .logo-mark, .logo:focus-visible .logo-mark { border-color: var(--gold-pale); background: rgba(200,164,100,.08); box-shadow: 0 5px 16px rgba(200,164,100,.2); transform: rotateY(12deg) rotateX(-5deg) translateY(-1px); }
+  .logo:hover .logo-mark::after, .logo:focus-visible .logo-mark::after { transition: transform .58s cubic-bezier(.2,.7,.2,1); transform: translateX(135%); }
+  .logo:hover .logo-word, .logo:focus-visible .logo-word { transform: translateX(2px); }
+  .logo:hover .logo-word small, .logo:focus-visible .logo-word small { letter-spacing: .32em; }
+  .site-header .logo-mark { animation: logo-mark-arrive .72s cubic-bezier(.2,.7,.2,1) both; }
+  .site-header .logo-word { animation: logo-word-arrive .48s ease-out .1s both; }
+}
 .menu-button { width: 46px; height: 46px; display: grid; align-content: center; justify-items: center; gap: 5px; margin-left: auto; padding: 8px; border: 1px solid rgba(255,255,255,.17); border-radius: 0; background: transparent; cursor: pointer; }
 .menu-button span { width: 19px; height: 1px; display: block; background: var(--white); transition: transform .2s ease, opacity .2s ease; }
 .menu-button[aria-expanded="true"] span:first-child { transform: translateY(6px) rotate(45deg); }
@@ -530,6 +544,8 @@ h1, h2, h3, p { margin-top: 0; }
 }
 @keyframes support-chat-open { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes support-chat-message-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes logo-mark-arrive { 0% { opacity: 0; transform: translateY(6px) rotateY(-30deg) scale(.88); } 72% { opacity: 1; transform: translateY(0) rotateY(7deg) scale(1.04); } 100% { opacity: 1; transform: none; } }
+@keyframes logo-word-arrive { from { opacity: 0; transform: translateX(-5px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes intro-rise { from { opacity: 0; transform: translateY(13px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes hero-drift { from { transform: scale(1.035) translate3d(-.35%, .2%, 0) rotateY(-.7deg); } to { transform: scale(1.075) translate3d(.35%, -.2%, 0) rotateY(.7deg); } }
 @keyframes stamp-float { 0%, 100% { transform: translate3d(0, 0, 28px) rotateY(-3deg); } 50% { transform: translate3d(0, -5px, 28px) rotateY(3deg); } }
