@@ -33,6 +33,10 @@ Edit the product list in js/products.js. The current products, prices, and pictu
 
 The site uses images/ for pictures and placeholders, css/style.css for design, and js/main.js for shopping features.
 
+## Customer support chat
+
+The site includes a support chat with basic answers and a WhatsApp handoff. AI-generated answers are optional and require the private `OPENAI_API_KEY` setting on the Railway backend. Customer chat messages are sent to the AI service only when that key is configured. See [server/README.md](server/README.md#optional-ai-support-chat) for setup, privacy, and usage-cost notes. Keep API keys out of frontend files and GitHub.
+
 ## Run the PhonePe API locally
 
 Use Node.js 20 or newer. From the `server` folder, copy `.env.example` to `.env`, add PhonePe **test** credentials, then run `npm start`. Set the local API URL in `js/payment-config.js` and serve the static website over HTTP from an origin listed in `SITE_ORIGINS`. See [server/README.md](server/README.md) for details. Do not test a live payment until PhonePe has approved the production credentials and you have completed UAT.

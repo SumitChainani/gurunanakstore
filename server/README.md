@@ -34,6 +34,19 @@ For the merchant-QR approval dashboard, set these values in your host's private 
 
 For optional PhonePe Gateway checkout, also set `PHONEPE_ENV=sandbox`, `PHONEPE_CLIENT_ID`, `PHONEPE_CLIENT_SECRET`, and `PHONEPE_CLIENT_VERSION` from PhonePe's UAT dashboard. These are not needed to approve manual QR orders.
 
+## Optional AI support chat
+
+The public storefront can answer common questions locally and show the WhatsApp handoff even before AI is connected. To enable AI-generated replies, add these values in the Railway service's **private Variables**:
+
+| Variable | Value |
+|---|---|
+| `OPENAI_API_KEY` | Your private API key from the OpenAI API platform (never paste it into chat, GitHub, or frontend files) |
+| `OPENAI_MODEL` | `gpt-4.1-mini` (optional; this is the default) |
+
+The backend sends a customer's chat messages to the OpenAI Responses API to generate replies. The chat panel tells customers not to share OTPs, UPI PINs, passwords, or card details; the server also redacts common phone, email, tracking-code, and payment-reference patterns. Do not use the assistant for order lookups or payment approval. Chats are not saved by this website, and the API request uses `store: false`; configure an API usage budget/alerts in the provider dashboard because API usage can incur charges. The backend applies short-lived in-memory request limits; they reset when the service restarts. If the key is missing or the AI service fails, the site falls back to basic store answers and the WhatsApp contact.
+
+After adding the private key, redeploy the Railway service. The frontend can stay on GitHub Pages; it calls `POST /api/support/chat` on the existing Railway API. Never add `OPENAI_API_KEY` to `js/payment-config.js` or any other public file.
+
 Your host supplies `PORT`. The service exposes order and admin routes, plus `GET /health`, `POST /api/payments/create`, and `GET /api/payments/status`. Copy the service's public HTTPS URL, for example `https://your-service.example`, into `window.GURUNANAK_API_URL` in `js/payment-config.js` (without a trailing slash). That URL is public; the admin password and payment credentials stay on the server.
 
 Set the admin password in the host's **private** environment settings only. Do not send it in chat or put it in website JavaScript. Mount a persistent disk and set `ORDERS_FILE` to a path on that disk. The order file contains customer names, phone numbers, addresses, and payment references; keep that disk private and restrict access to the service. If the hosting platform cannot provide persistent disk storage, do not use this JSON file store for live orders; configure a managed database before launch. Keep the service to one running instance when using the JSON file store.

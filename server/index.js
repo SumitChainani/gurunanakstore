@@ -23,6 +23,7 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 const { URL } = require("node:url");
 const PRODUCT_CATALOG = require("./catalog");
+const { createSupportRateLimiter, normalizeSupportMessages, requestSupportReply } = require("./support-chat");
 const PHONEPE_DISCOUNT_PERCENT = 10;
 const TRACKING_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -31,6 +32,8 @@ const PHONEPE_ENV = String(process.env.PHONEPE_ENV || "sandbox").toLowerCase();
 const PHONEPE_CLIENT_ID = process.env.PHONEPE_CLIENT_ID || "";
 const PHONEPE_CLIENT_SECRET = process.env.PHONEPE_CLIENT_SECRET || "";
 const PHONEPE_CLIENT_VERSION = process.env.PHONEPE_CLIENT_VERSION || "";
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
+const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 const SITE_URL = process.env.SITE_URL || "https://gurunanakstore.shop";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 const ORDERS_FILE = path.resolve(process.env.ORDERS_FILE || path.join(__dirname, "data", "orders.json"));
@@ -60,6 +63,7 @@ const ADMIN_FAILURE_WINDOW_MS = 15 * 60 * 1000;
 const ADMIN_MAX_FAILURES = 8;
 const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 const adminSessions = new Map();
+const allowSupportChatRequest = createSupportRateLimiter();
 
 function isConfigured() {
   return Boolean(PHONEPE_CLIENT_ID && PHONEPE_CLIENT_SECRET && PHONEPE_CLIENT_VERSION);
@@ -83,6 +87,13 @@ function corsHeaders(origin) {
 function sendJson(response, status, body, origin) {
   response.writeHead(status, corsHeaders(origin));
   response.end(JSON.stringify(body));
+}
+
+function supportClientKey(request) {
+  const forwardedFor = String(request.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  const address = forwardedFor || request.socket.remoteAddress || "unknown";
+  // Keep only a short-lived digest in memory; do not store customer IP addresses.
+  return crypto.createHash("sha256").update(address).digest("hex");
 }
 
 function readJson(request) {
@@ -437,6 +448,35 @@ const server = http.createServer(async (request, response) => {
       codEnabled: true,
       environment: PHONEPE_ENV
     }, origin);
+  }
+
+  if (requestUrl.pathname === "/api/support/chat" && request.method === "POST") {
+    if (!OPENAI_API_KEY) {
+      return sendJson(response, 503, { error: "The AI support assistant is not connected yet." }, origin);
+    }
+
+    let messages;
+    try {
+      const body = await readJson(request);
+      messages = normalizeSupportMessages(body.messages);
+    } catch (error) {
+      return sendJson(response, Number(error.statusCode) || 400, { error: error.message || "Send a valid support message." }, origin);
+    }
+
+    if (!allowSupportChatRequest(supportClientKey(request))) {
+      return sendJson(response, 429, { error: "The support chat is busy. Please wait a little or contact us on WhatsApp." }, origin);
+    }
+
+    try {
+      const reply = await requestSupportReply(messages, { apiKey: OPENAI_API_KEY, model: OPENAI_MODEL });
+      return sendJson(response, 200, { reply }, origin);
+    } catch (error) {
+      console.error("Support assistant request failed:", error.providerStatus || error.providerError || "invalid provider response");
+      const status = Number(error.statusCode) || 502;
+      return sendJson(response, status, {
+        error: status === 400 ? error.message : "The support assistant could not reply. Please try again or contact us on WhatsApp."
+      }, origin);
+    }
   }
 
   if (requestUrl.pathname === "/api/orders" && request.method === "POST") {

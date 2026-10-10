@@ -1178,6 +1178,151 @@ function initWhatsAppLinks() {
   });
 }
 
+function getLocalSupportAnswer(message) {
+  const question = String(message || "").toLowerCase();
+  if (/track|tracking|status|my order|order code|order id|ऑर्डर/.test(question)) {
+    return "To check an order, open My Orders and enter the unique tracking code from your order message. I can’t look up private order details in this chat.";
+  }
+  if (/phonepe|upi|payment|pay|qr|transaction|पेमेंट|भुगतान/.test(question)) {
+    return "PhonePe/UPI orders get 10% off the product total. Scan the checkout QR and verify the payee and amount in your UPI app. Cash on delivery has no PhonePe discount. A person checks QR payment references before approving an order.";
+  }
+  if (/cod|cash on delivery|delivery payment/.test(question)) {
+    return "Cash on delivery is available at checkout. There is no PhonePe discount on COD; you pay when the approved order arrives. Delivery charges and timing are confirmed separately.";
+  }
+  if (/shipping|delivery|deliver|ship|कब पहुंचे|डिलीवरी/.test(question)) {
+    return "Delivery timing and charges are confirmed by the store for each order. For a delivery already in progress, contact us on WhatsApp so a person can check it.";
+  }
+  if (/refund|return|broken|damaged|wrong item|not working|complaint|issue with my|समस्या|वापस/.test(question)) {
+    return "A person needs to review this issue. Please use the WhatsApp support link below and tell us what happened. Don’t share an OTP, UPI PIN, password, or card details.";
+  }
+  if (/fit|compatible|compatib|install|installation|bike model|motorcycle|scooter|helmet/.test(question)) {
+    return "Bike fit and installation can vary. Please tell our team your bike make and model on WhatsApp so they can check compatibility before you order.";
+  }
+  if (/product|price|shop|catalog|catalogue|item|accessor/.test(question)) {
+    return "You can see current products and prices on the Shop page. If you share the product name and your bike model, the store can help check whether it fits.";
+  }
+  if (/order|buy|checkout|place/.test(question)) {
+    return "Add a product to your cart, open checkout, enter your delivery details, and choose PhonePe/UPI or cash on delivery. You’ll see the order tracking code after the order is saved.";
+  }
+  return "I couldn’t confidently solve that from the store information available here. Please use the WhatsApp support link below and a person will help.";
+}
+
+function initSupportChat() {
+  if (document.querySelector("[data-support-chat]")) return;
+
+  const whatsappHelpUrl = whatsappUrl("Hi GurunanakStore, I need help with a question from your website.");
+  const widget = document.createElement("div");
+  widget.dataset.supportChat = "";
+  widget.innerHTML = [
+    '<button class="support-chat-launcher" type="button" aria-expanded="false" aria-controls="support-chat-panel" data-support-chat-open>',
+    '<span class="support-chat-launcher-icon" aria-hidden="true">✦</span><span>Ask for help</span></button>',
+    '<section class="support-chat-panel" id="support-chat-panel" role="dialog" aria-label="GurunanakStore support chat" hidden>',
+    '<header class="support-chat-header"><span class="support-chat-avatar" aria-hidden="true">G</span>',
+    '<div class="support-chat-heading"><strong>Rider Support</strong><span>Products, payments and order guidance</span></div>',
+    '<button class="support-chat-close" type="button" aria-label="Close support chat" data-support-chat-close>×</button></header>',
+    '<div class="support-chat-messages" role="log" aria-live="polite" aria-relevant="additions text" data-support-chat-messages></div>',
+    '<div class="support-chat-quick-actions" aria-label="Suggested questions">',
+    '<button type="button" data-support-question="How do I track my order?">Track my order</button>',
+    '<button type="button" data-support-question="How do PhonePe and COD payments work?">Payment help</button>',
+    '<button type="button" data-support-question="Can you help me check product fit for my bike?">Product fit</button></div>',
+    '<form class="support-chat-composer" data-support-chat-form><label class="sr-only" for="support-chat-input">Your question</label>',
+    '<textarea id="support-chat-input" name="message" maxlength="900" rows="2" placeholder="Type your question…" required></textarea>',
+    '<button class="support-chat-send" type="submit" data-support-chat-send>Send</button></form>',
+    '<p class="support-chat-privacy">AI replies may process your message. Don’t share OTPs, UPI PINs, passwords or card details.</p>',
+    '<p class="support-chat-status" role="status" aria-live="polite" data-support-chat-status></p>',
+    '<div class="support-chat-footer"><a href="orders.html">Open order tracking</a>',
+    '<a href="' + escapeHTML(whatsappHelpUrl) + '" target="_blank" rel="noopener noreferrer">Need a person? WhatsApp us ↗</a></div></section>'
+  ].join("");
+  document.body.appendChild(widget);
+
+  const openButton = widget.querySelector("[data-support-chat-open]");
+  const closeButton = widget.querySelector("[data-support-chat-close]");
+  const panel = widget.querySelector("[role='dialog']");
+  const log = widget.querySelector("[data-support-chat-messages]");
+  const form = widget.querySelector("[data-support-chat-form]");
+  const input = widget.querySelector("#support-chat-input");
+  const sendButton = widget.querySelector("[data-support-chat-send]");
+  const status = widget.querySelector("[data-support-chat-status]");
+  const history = [];
+  let isSending = false;
+
+  function appendMessage(role, content) {
+    const message = document.createElement("div");
+    message.className = "support-chat-message support-chat-message--" + (role === "user" ? "user" : "assistant");
+    message.textContent = String(content || "");
+    log.appendChild(message);
+    log.scrollTop = log.scrollHeight;
+    history.push({ role, content: String(content || "") });
+    if (history.length > 10) history.splice(0, history.length - 10);
+  }
+
+  function setOpen(isOpen) {
+    panel.hidden = !isOpen;
+    openButton.setAttribute("aria-expanded", String(isOpen));
+    if (isOpen) input.focus();
+    else openButton.focus();
+  }
+
+  function setBusy(isBusy) {
+    isSending = isBusy;
+    input.disabled = isBusy;
+    sendButton.disabled = isBusy;
+    sendButton.textContent = isBusy ? "…" : "Send";
+  }
+
+  async function sendSupportMessage(value) {
+    const customerMessage = String(value || "").trim();
+    if (!customerMessage || isSending) return;
+    status.textContent = "";
+    appendMessage("user", customerMessage);
+    input.value = "";
+    setBusy(true);
+
+    try {
+      if (!API_BASE_URL) throw new Error("The support service is not connected.");
+      const response = await fetch(API_BASE_URL + "/api/support/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: history.slice(-10) }),
+        signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(16000) : undefined
+      });
+      const result = await response.json();
+      if (!response.ok || typeof result.reply !== "string" || !result.reply.trim()) {
+        throw new Error(result.error || "The AI assistant is temporarily unavailable.");
+      }
+      appendMessage("assistant", result.reply.trim());
+    } catch (error) {
+      const answer = getLocalSupportAnswer(customerMessage);
+      appendMessage("assistant", answer);
+      status.textContent = "Showing store guidance; AI chat may be offline. A person can help on WhatsApp below.";
+    } finally {
+      setBusy(false);
+      input.focus();
+    }
+  }
+
+  openButton.addEventListener("click", () => setOpen(panel.hidden));
+  closeButton.addEventListener("click", () => setOpen(false));
+  panel.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") setOpen(false);
+  });
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    sendSupportMessage(input.value);
+  });
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      form.requestSubmit();
+    }
+  });
+  widget.querySelectorAll("[data-support-question]").forEach((button) => {
+    button.addEventListener("click", () => sendSupportMessage(button.dataset.supportQuestion));
+  });
+
+  appendMessage("assistant", "Hi! Ask me about products, PhonePe or COD, or order tracking. I can guide you, and you can reach a person on WhatsApp at any time.");
+}
+
 function showToast(message) {
   const toast = document.querySelector("[data-toast]");
   if (!toast) return;
@@ -1288,6 +1433,7 @@ document.addEventListener("DOMContentLoaded", () => {
   renderCheckoutPage();
   initContactForm();
   initOrderHistoryPage();
+  initSupportChat();
   updateCartCount();
   document.querySelectorAll("[data-year]").forEach((element) => {
     element.textContent = new Date().getFullYear();
