@@ -179,6 +179,9 @@ function buildOrder(body) {
   if (!/^GS\d{13}[A-Z0-9]{8}$/.test(checkoutReference)) {
     throw Object.assign(new Error("The checkout reference is not valid. Reload checkout and try again."), { statusCode: 400 });
   }
+  if (paymentMethod === "PHONEPE_UPI" && !paymentReference) {
+    throw Object.assign(new Error("Enter your PhonePe transaction ID before sending the order for approval."), { statusCode: 400 });
+  }
   if (paymentReference.length > 60) {
     throw Object.assign(new Error("The payment reference is too long."), { statusCode: 400 });
   }

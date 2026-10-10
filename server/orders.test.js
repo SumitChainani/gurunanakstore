@@ -180,7 +180,8 @@ test("rejects invalid checkout contact details without saving an order", async (
       body: JSON.stringify({
         items: [{ productId: 1, quantity: 1 }],
         customer,
-        checkoutReference: "GS123456789012" + (7 + index) + "AB12CD34"
+        checkoutReference: "GS123456789012" + (7 + index) + "AB12CD34",
+        paymentReference: "UPI-TEST-123"
       })
     });
     assert.equal(response.status, 400);
@@ -190,31 +191,42 @@ test("rejects invalid checkout contact details without saving an order", async (
   assert.equal(after, before);
 });
 
-test("does not allow payment approval without a customer transaction reference", async () => {
-  const created = await send("/api/orders", {
+test("requires a PhonePe transaction ID when creating an order and blocks approval without one", async () => {
+  const before = JSON.parse(await fs.readFile(ordersFile, "utf8"));
+  const missingReference = await send("/api/orders", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       items: [{ productId: 1, quantity: 1 }],
       customer: { name: "No Reference", phone: "8815960891", address: "44 Market Road, Pune 411001" },
       checkoutReference: "GS1234567890124AB12CD34",
-      paymentReference: ""
+      paymentReference: "   "
     })
   });
-  const orderWithoutReference = await created.json();
-  assert.notEqual(orderWithoutReference.trackingCode, createdOrder.trackingCode);
+  assert.equal(missingReference.status, 400);
+  assert.match((await missingReference.json()).error, /transaction ID/i);
+  assert.equal(JSON.parse(await fs.readFile(ordersFile, "utf8")).length, before.length);
+
+  // Check the owner approval guard against a legacy order record that has no reference.
+  const storedOrders = JSON.parse(await fs.readFile(ordersFile, "utf8"));
+  const storedCreatedOrder = storedOrders.find((order) => order.orderId === createdOrder.orderId);
+  const validReference = storedCreatedOrder.paymentReference;
+  storedCreatedOrder.paymentReference = "";
+  await fs.writeFile(ordersFile, JSON.stringify(storedOrders, null, 2));
   const login = await send("/api/admin/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ password: OWNER_PASSWORD })
   });
   const session = await login.json();
-  const response = await send("/api/admin/orders/" + orderWithoutReference.orderId + "/approve", {
+  const response = await send("/api/admin/orders/" + createdOrder.orderId + "/approve", {
     method: "POST",
     headers: { Authorization: "Bearer " + session.token, "Content-Type": "application/json" },
     body: JSON.stringify({})
   });
   assert.equal(response.status, 400);
+  storedCreatedOrder.paymentReference = validReference;
+  await fs.writeFile(ordersFile, JSON.stringify(storedOrders, null, 2));
 });
 
 test("saves COD at full price and lets the owner accept it without marking payment paid", async () => {
