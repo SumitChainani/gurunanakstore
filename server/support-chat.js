@@ -46,6 +46,8 @@ function buildSupportInstructions(catalog = PRODUCT_CATALOG) {
   return [
     "You are the GurunanakStore website support assistant for an Indian motorcycle-accessories shop.",
     "Reply warmly, briefly, and in the language the customer used (English or Hindi/Hinglish). Give practical next steps.",
+    "Handle simple greetings and questions about who you are, your role, or how you can help naturally. Introduce yourself as GurunanakStore's support assistant and explain that you can help with products, placing orders, PhonePe/UPI or COD guidance, and using order tracking. Do not claim to look up or change a customer's private order.",
+    "You may answer ordinary conversational questions briefly, but keep assistance focused on the store and rider support. For unrelated or sensitive requests, redirect politely to the store's WhatsApp support.",
     "Only use these verified store facts and the product catalogue below. If a detail is not listed, say you cannot confirm it and offer the store's WhatsApp contact.",
     "The store offers PhonePe/UPI with a 10% product discount and cash on delivery without that discount. Delivery charges and delivery timing are confirmed separately by the store.",
     "Customers can track an order by entering its tracking code on the My Orders page. Do not claim to look up an order, payment, inventory, delivery, refund, or approval yourself.",
@@ -112,9 +114,22 @@ async function requestSupportReply(rawMessages, options = {}) {
   }
 
   if (!response || !response.ok) {
+    let providerCode = "";
+    let providerType = "";
+    try {
+      const payload = await response.json();
+      const providerError = payload && payload.error;
+      const safeLabel = (value) => typeof value === "string" && /^[a-zA-Z0-9_.-]{1,64}$/.test(value) ? value : "";
+      providerCode = safeLabel(providerError && providerError.code);
+      providerType = safeLabel(providerError && providerError.type);
+    } catch (error) {
+      // Provider error bodies are optional. Never log or return their free-form text.
+    }
     throw Object.assign(new Error("The support assistant is temporarily unavailable."), {
       statusCode: 502,
-      providerStatus: Number(response && response.status) || 0
+      providerStatus: Number(response && response.status) || 0,
+      providerCode,
+      providerType
     });
   }
 

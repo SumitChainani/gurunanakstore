@@ -73,3 +73,34 @@ test("support endpoint rejects an unapproved website origin", async () => {
   }, "https://untrusted.example");
   assert.equal(response.status, 403);
 });
+
+test("provider failures return a generic message and log only safe diagnostics", async () => {
+  const previousFetch = global.fetch;
+  const previousConsoleError = console.error;
+  const logParts = [];
+  global.fetch = async () => ({
+    ok: false,
+    status: 429,
+    json: async () => ({ error: {
+      code: "insufficient_quota",
+      type: "invalid_request_error",
+      message: "private provider detail with customer 8815960890 and key sk-secret"
+    } })
+  });
+  console.error = (...parts) => logParts.push(parts.map(String).join(" "));
+
+  try {
+    const response = await send("/api/support/chat", {
+      messages: [{ role: "user", content: "Hello" }]
+    });
+    assert.equal(response.status, 502);
+    assert.match(response.json.error, /could not reply/i);
+    const logged = logParts.join(" ");
+    assert.match(logged, /http_429 insufficient_quota invalid_request_error/);
+    assert.doesNotMatch(logged, /customer 8815960890|sk-secret|private provider detail/);
+    assert.doesNotMatch(JSON.stringify(response.json), /insufficient_quota|sk-secret/);
+  } finally {
+    global.fetch = previousFetch;
+    console.error = previousConsoleError;
+  }
+});

@@ -3,6 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  buildSupportInstructions,
   createSupportRateLimiter,
   extractAssistantText,
   normalizeSupportMessages,
@@ -51,6 +52,13 @@ test("extracts assistant text from the Responses API output format", () => {
   assert.equal(extractAssistantText({ output: [] }), "");
 });
 
+test("instructs the assistant to answer greetings and explain its store-support role", () => {
+  const instructions = buildSupportInstructions({});
+  assert.match(instructions, /greetings and questions about who you are/i);
+  assert.match(instructions, /products, placing orders, PhonePe\/UPI or COD guidance/i);
+  assert.match(instructions, /Do not claim to look up or change a customer's private order/i);
+});
+
 test("calls the Responses API with a private key, bounded output, no storage, and redacted chat", async () => {
   let requestedUrl = "";
   let requestedOptions;
@@ -78,6 +86,7 @@ test("calls the Responses API with a private key, bounded output, no storage, an
   assert.equal(requestBody.model, "gpt-4.1-mini");
   assert.equal(requestBody.store, false);
   assert.equal(requestBody.max_output_tokens, 280);
+  assert.match(requestBody.instructions, /greetings and questions about who you are/i);
   assert.doesNotMatch(requestBody.input[0].content, /8815960890|GS-ABCD/);
   assert.doesNotMatch(JSON.stringify(requestBody), /private-test-key/);
 });
@@ -93,8 +102,13 @@ test("does not call the AI provider when its secret is missing", async () => {
 test("turns provider errors and empty replies into safe service errors", async () => {
   await assert.rejects(() => requestSupportReply([{ role: "user", content: "Hi" }], {
     apiKey: "private-test-key",
-    fetchImpl: async () => ({ ok: false, status: 429, json: async () => ({ error: "private response detail" }) })
-  }), (error) => error.statusCode === 502 && error.providerStatus === 429 && !error.message.includes("private response detail"));
+    fetchImpl: async () => ({ ok: false, status: 429, json: async () => ({ error: { code: "insufficient_quota", type: "invalid_request_error", message: "private provider detail" } }) })
+  }), (error) => error.statusCode === 502 && error.providerStatus === 429 && error.providerCode === "insufficient_quota" && error.providerType === "invalid_request_error" && !error.message.includes("private provider detail"));
+
+  await assert.rejects(() => requestSupportReply([{ role: "user", content: "Hi" }], {
+    apiKey: "private-test-key",
+    fetchImpl: async () => ({ ok: false, status: 429, json: async () => ({ error: { code: "quota\nCUSTOMER_PHONE", type: "bad type", message: "do not log me" } }) })
+  }), (error) => error.providerCode === "" && error.providerType === "" && !error.message.includes("do not log me"));
 
   await assert.rejects(() => requestSupportReply([{ role: "user", content: "Hi" }], {
     apiKey: "private-test-key",
