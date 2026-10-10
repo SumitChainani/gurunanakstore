@@ -50,7 +50,7 @@ const PRODUCTS = [
     id: 3,
     name: "HJG 3-Lens LED Motorcycle Light – High-Power Triple Beam, Premium Design & Bright Road Visibility for Night Riding",
     category: "Electronics",
-    price: 1299,
+    price: 609,
     badge: "Triple beam",
     image: "images/hjg-3-lens-front.jpeg",
     alt: "Front view of an HJG motorcycle light with three illuminated lenses",
