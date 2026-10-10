@@ -553,8 +553,8 @@ function renderCheckoutPage() {
     '<div class="dynamic-qr-panel"><p class="eyebrow eyebrow-dark">SCAN WITH PHONEPE OR ANY UPI APP</p><h3>Payment QR</h3>',
     '<div class="dynamic-upi-qr" data-upi-qr aria-live="polite">Creating your payment QR…</div>',
     '<p class="dynamic-qr-amount">Amount in QR (10% discount included): <strong>' + formatExactPrice(paymentTotal.payable) + '</strong></p>',
-    '<p class="dynamic-qr-note">After paying, enter the PhonePe transaction reference if available, then send the order. Delivery charges are confirmed separately, and the store checks QR payments manually before approval.</p></div></section>',
-    '<label class="payment-reference-label">PhonePe transaction reference (optional, if you already paid)<input name="paymentReference" maxlength="50" placeholder="Enter the transaction ID shown in PhonePe" /></label></div>',
+    '<p class="dynamic-qr-note">After paying, enter the PhonePe transaction ID shown in your payment app before sending your order for approval. The store checks QR payments manually before approval.</p></div></section>',
+    '<label class="payment-reference-label">PhonePe transaction ID (required for PhonePe orders)<input name="paymentReference" maxlength="50" placeholder="Enter the transaction ID shown in PhonePe" required /></label></div>',
     '<div class="cod-payment-note" data-cod-payment-note hidden><strong>Cash on delivery selected</strong><span>You will pay the order amount when it is delivered. Your request will be sent to GurunanakStore on WhatsApp for approval.</span></div>',
     '<button class="button button-outline button-wide whatsapp-order-button" type="submit"><span data-checkout-submit-label>Send for Order Approval</span> <span aria-hidden="true">↗</span></button>',
     '<p class="order-confirmation-note" data-payment-method-note>PhonePe QR payments are checked manually and stay pending until the store approves them. Never share your UPI PIN or OTP with anyone.</p>',
@@ -580,10 +580,14 @@ function updateCheckoutPaymentMethod(form, paymentTotal) {
   const totalValue = form.closest(".checkout-page").querySelector("[data-checkout-total]");
   const methodNote = form.querySelector("[data-payment-method-note]");
   const submitLabel = form.querySelector("[data-checkout-submit-label]");
+  const paymentReference = form.elements.paymentReference;
   if (upiDetails) upiDetails.hidden = isCOD;
   if (codNote) codNote.hidden = !isCOD;
   if (submitLabel) submitLabel.textContent = isCOD ? "Send Order to WhatsApp" : "Send for Order Approval";
-  if (isCOD && form.elements.paymentReference) form.elements.paymentReference.value = "";
+  if (paymentReference) {
+    paymentReference.required = !isCOD;
+    if (isCOD) paymentReference.value = "";
+  }
   if (totalLabel) totalLabel.textContent = isCOD ? "Cash due on delivery" : "PhonePe total after 10% discount";
   if (totalValue) totalValue.textContent = isCOD ? formatPrice(paymentTotal.subtotal) : formatExactPrice(paymentTotal.payable);
   if (methodNote) {
@@ -1045,6 +1049,15 @@ async function submitOrder(event) {
   const details = Object.fromEntries(new FormData(form));
   const paymentMethod = String(details.paymentMethod || "PHONEPE_UPI").toUpperCase() === "COD" ? "COD" : "PHONEPE_UPI";
   const paymentReference = paymentMethod === "COD" ? "" : String(details.paymentReference || "").trim();
+  if (paymentMethod === "PHONEPE_UPI" && !paymentReference) {
+    const referenceField = form.elements.paymentReference;
+    if (referenceField) {
+      referenceField.required = true;
+      referenceField.focus();
+      referenceField.reportValidity();
+    }
+    return;
+  }
   const submitButton = form.querySelector('button[type="submit"]');
   const initialButtonText = submitButton ? submitButton.innerHTML : "";
   let savedOrder = null;
@@ -1117,7 +1130,7 @@ async function submitOrder(event) {
     (isCOD
       ? "Payment method: Cash on Delivery\nCash due at delivery: " + formatPrice(finalAmount) + "\nPayment: I will pay in cash when the order is delivered. Please approve my COD order.\n\n"
       : "Payment method: PhonePe / UPI\nItems total before PhonePe discount: " + formatPrice(cartTotal()) + "\nPhonePe QR amount after 10% discount: " + formatExactPrice(phonePePaymentTotal(items).payable) + "\n" +
-        "PhonePe transaction reference (if already paid): " + (paymentReference || "Not provided") + "\n\n") +
+        "PhonePe transaction ID: " + paymentReference + "\n\n") +
     "Delivery: Please confirm the availability and charge for my address.\n" +
     "Name: " + details.name + "\n" +
     "Phone: " + details.phone + "\n" +
