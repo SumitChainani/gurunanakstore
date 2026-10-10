@@ -12,7 +12,7 @@ const PRODUCTS = [
     id: 1,
     name: "Helmet LED – Dual Beam Smart Light | Premium 360° Visibility & Stylish Design for Night Riding",
     category: "Rider gear",
-    price: 899,
+    price: 359,
     badge: "Night riding",
     image: "images/helmet-led-front.jpeg",
     alt: "Front view of a dual-beam helmet LED light beside a motorcycle at dusk",
