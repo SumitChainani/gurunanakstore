@@ -10,6 +10,7 @@ const STORE_NAME = "GurunanakStore";
 const STORE_PHONE = "918815960890";
 const PHONEPE_DISCOUNT_PERCENT = 10;
 const CART_STORAGE_KEY = "gurunanakAccessoriesCart";
+const CHECKOUT_DRAFT_STORAGE_KEY = "gurunanakCheckoutDraft";
 const PHONEPE_RETURN_STORAGE_KEY = "gurunanakPhonePePendingOrder";
 const PRODUCT_REVIEWS_STORAGE_KEY = "gurunanakProductReviews";
 const ORDER_HISTORY_STORAGE_KEY = "gurunanakCustomerOrderHistory";
@@ -125,8 +126,71 @@ function cartItems() {
   })).filter((item) => item.product);
 }
 
+function getCheckoutDraftItems() {
+  try {
+    const draft = JSON.parse(sessionStorage.getItem(CHECKOUT_DRAFT_STORAGE_KEY) || "null");
+    if (!draft || !Array.isArray(draft.items)) return [];
+    return draft.items.map((item) => ({
+      product: findProduct(item.productId),
+      quantity: Math.floor(Number(item.quantity))
+    })).filter((item) => item.product && Number.isFinite(item.quantity) && item.quantity > 0);
+  } catch (error) {
+    return [];
+  }
+}
+
+function saveCheckoutDraft(items) {
+  try {
+    sessionStorage.setItem(CHECKOUT_DRAFT_STORAGE_KEY, JSON.stringify({
+      items: items.map(({ product, quantity }) => ({ productId: product.id, quantity })),
+      savedAt: Date.now()
+    }));
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function clearCartForCheckout() {
+  try {
+    localStorage.removeItem(CART_STORAGE_KEY);
+  } catch (error) {
+    saveCart({});
+    return;
+  }
+  updateCartCount();
+}
+
+// Keep a temporary copy in this tab so checkout and payment still have the
+// selected products after the visible shopping cart has been emptied.
+function checkoutItems() {
+  const savedItems = getCheckoutDraftItems();
+  if (savedItems.length) return savedItems;
+
+  const currentItems = cartItems();
+  if (currentItems.length && saveCheckoutDraft(currentItems)) clearCartForCheckout();
+  return currentItems;
+}
+
+function beginCheckoutFromCart() {
+  const items = cartItems();
+  if (items.length && saveCheckoutDraft(items)) clearCartForCheckout();
+}
+
+function clearCheckoutDraft() {
+  try {
+    sessionStorage.removeItem(CHECKOUT_DRAFT_STORAGE_KEY);
+  } catch (error) {
+    // The completed order is already saved; a stale draft is limited to this tab.
+  }
+}
+
+function itemsSubtotal(items) {
+  return items.reduce((total, item) => total + item.product.price * item.quantity, 0);
+}
+
 function cartTotal() {
-  return cartItems().reduce((total, item) => total + item.product.price * item.quantity, 0);
+  return itemsSubtotal(cartItems());
 }
 
 // Keep regular cart prices unchanged; this breakdown is used only when paying
@@ -497,7 +561,7 @@ function renderCartPage() {
     '<div class="summary-line"><span>Delivery</span><strong>Confirm on WhatsApp</strong></div>',
     '<div class="summary-total"><span>Items total</span><strong>' + formatPrice(cartTotal()) + '</strong></div>',
     '<p class="summary-note">We’ll confirm stock, fit, delivery availability, and any delivery charge before payment.</p>',
-    '<a class="button button-gold button-wide" href="checkout.html">Continue to checkout <span aria-hidden="true">→</span></a></aside></div></section>'
+    '<a class="button button-gold button-wide" href="checkout.html" data-start-checkout>Continue to checkout <span aria-hidden="true">→</span></a></aside></div></section>'
   ].join("");
 
   observeMotionTargets(target);
@@ -514,13 +578,15 @@ function renderCartPage() {
       renderCartPage();
     });
   });
+  const checkoutLink = target.querySelector("[data-start-checkout]");
+  if (checkoutLink) checkoutLink.addEventListener("click", beginCheckoutFromCart);
 }
 
 function renderCheckoutPage() {
   const target = document.querySelector("[data-checkout-page]");
   if (!target) return;
   if (renderPhonePeReturnPage(target)) return;
-  const items = cartItems();
+  const items = checkoutItems();
 
   if (!items.length) {
     target.innerHTML = '<section class="empty-cart section"><span class="empty-icon" aria-hidden="true">GS</span><p class="eyebrow eyebrow-dark">Checkout</p><h1>Your cart is empty.</h1><p>Add an accessory before continuing to checkout.</p><a class="button button-gold" href="shop.html">Explore accessories <span aria-hidden="true">→</span></a></section>';
@@ -534,7 +600,7 @@ function renderCheckoutPage() {
   const summaryRows = items.map(({ product, quantity }) => '<div class="summary-line"><span>' + quantity + ' × ' + escapeHTML(product.name) + '</span><strong>' + formatPrice(product.price * quantity) + '</strong></div>').join("");
   target.innerHTML = [
     '<section class="checkout-page section"><div class="checkout-intro"><p class="eyebrow eyebrow-dark">Almost there</p><h1>Let’s get you<br />ready to ride.</h1>',
-    '<p>Share your delivery details and choose PhonePe UPI or cash on delivery. Then send your order on WhatsApp. Once it is saved, your tracking code appears on screen and in the message so you can check its approval status.</p>',
+    '<p>Share your delivery details and choose PhonePe UPI or cash on delivery. The items below stay in this checkout while your cart is cleared. Then send your order on WhatsApp. Once it is saved, your tracking code appears on screen and in the message so you can check its approval status.</p>',
     '<p><a class="text-link text-link-dark" href="cart.html">← Back to your cart</a></p>',
     '<aside class="order-summary checkout-summary"><p class="eyebrow eyebrow-dark">Your order</p>' + summaryRows,
     '<div class="summary-line"><span>Delivery</span><strong>Confirm with support first</strong></div>',
@@ -612,7 +678,7 @@ async function startPhonePeCheckout(event) {
   const form = target && target.querySelector("[data-checkout-form]");
   if (!PHONEPE_API_BASE_URL || !form || !form.reportValidity()) return;
 
-  const items = cartItems();
+  const items = checkoutItems();
   if (!items.length) {
     showToast("Your cart is empty.");
     renderCheckoutPage();
@@ -729,6 +795,7 @@ function renderPhonePeReturnPage(target) {
         whatsappButton.href = whatsappUrl(orderMessage);
         whatsappButton.hidden = false;
         localStorage.removeItem(CART_STORAGE_KEY);
+        clearCheckoutDraft();
         updateCartCount();
       } else if (result.state === "COMPLETED") {
         statusIcon.dataset.state = "pending";
@@ -1049,7 +1116,7 @@ async function submitOrder(event) {
   const form = event.currentTarget;
   const target = document.querySelector("[data-checkout-page]");
   if (!form.reportValidity()) return;
-  const items = cartItems();
+  const items = checkoutItems();
   if (!items.length) {
     renderCheckoutPage();
     showToast("Your cart is empty.");
@@ -1131,14 +1198,14 @@ async function submitOrder(event) {
 
   const isCOD = paymentMethod === "COD";
   const orderNumber = String(savedOrder ? (savedOrder.trackingCode || savedOrder.orderId) : details.orderReference || "GS" + Date.now().toString().slice(-10));
-  const finalAmount = savedOrder ? Number(savedOrder.amountRupees) : isCOD ? cartTotal() : phonePePaymentTotal(items).payable;
+  const finalAmount = savedOrder ? Number(savedOrder.amountRupees) : isCOD ? itemsSubtotal(items) : phonePePaymentTotal(items).payable;
   const itemLines = items.map(({ product, quantity }) => "- " + product.name + " x " + quantity + " — " + formatPrice(product.price * quantity)).join("\n");
   const message = "Namaste " + STORE_NAME + ", I would like to place an order.\n\n" +
     (savedOrder ? "Order tracking code: " : "Order reference: ") + orderNumber + "\n\n" + itemLines + "\n\n" +
     (savedOrder ? (savedOrder.checkoutReference ? "UPI QR reference: " + savedOrder.checkoutReference + "\n" : "") + "Order status page: " + new URL(savedOrder.trackingCode ? "order.html?trackingCode=" + encodeURIComponent(savedOrder.trackingCode) : "order.html?orderId=" + encodeURIComponent(savedOrder.orderId), window.location.href).toString() + "\n\n" : "") +
     (isCOD
       ? "Payment method: Cash on Delivery\nCash due at delivery: " + formatPrice(finalAmount) + "\nPayment: I will pay in cash when the order is delivered. Please approve my COD order.\n\n"
-      : "Payment method: PhonePe / UPI\nItems total before PhonePe discount: " + formatPrice(cartTotal()) + "\nPhonePe QR amount after 10% discount: " + formatExactPrice(phonePePaymentTotal(items).payable) + "\n" +
+      : "Payment method: PhonePe / UPI\nItems total before PhonePe discount: " + formatPrice(itemsSubtotal(items)) + "\nPhonePe QR amount after 10% discount: " + formatExactPrice(phonePePaymentTotal(items).payable) + "\n" +
         "PhonePe transaction ID: " + paymentReference + "\n\n") +
     "Delivery: Please confirm the availability and charge for my address.\n" +
     "Name: " + details.name + "\n" +
@@ -1149,11 +1216,13 @@ async function submitOrder(event) {
   // after the save completes so popup blockers do not swallow the message.
   if (savedOrder && isCOD) {
     // The customer still reviews and sends the pre-filled order message in WhatsApp.
+    clearCheckoutDraft();
     window.location.assign(codWhatsAppUrl(message));
     return;
   }
   const whatsappOpened = savedOrder ? false : openWhatsApp(message);
   renderManualOrderStatus(target, orderNumber, finalAmount, paymentReference, whatsappOpened, message, savedOrder);
+  clearCheckoutDraft();
 }
 
 function initContactForm() {
