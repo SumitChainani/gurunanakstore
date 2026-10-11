@@ -132,6 +132,19 @@ h1, h2, h3, p { margin-top: 0; }
 .product-image-wrap { position: relative; height: clamp(138px, 43vw, 190px); overflow: hidden; background: #eae8e1; }
 .product-image-wrap img { width: 100%; height: 100%; object-fit: cover; transform: translateZ(9px); transition: transform .55s cubic-bezier(.2,.7,.2,1); backface-visibility: hidden; }
 .product-card:hover .product-image-wrap img { transform: scale(1.035); }
+/* Product photos gently rise and settle so the catalogue feels active on phones too. */
+@media (prefers-reduced-motion: no-preference) {
+  .product-image-wrap img, .product-detail-image img { animation: product-photo-drift 6.4s ease-in-out infinite; transform-origin: center; }
+  .product-grid .product-card:nth-child(4n + 2) .product-image-wrap img { animation-delay: -1.6s; }
+  .product-grid .product-card:nth-child(4n + 3) .product-image-wrap img { animation-delay: -3.2s; }
+  .product-grid .product-card:nth-child(4n) .product-image-wrap img { animation-delay: -4.8s; }
+  .product-card:hover .product-image-wrap img { animation-play-state: paused; translate: 0 -2px; scale: 1.04; }
+  .product-detail-image:hover img { animation-play-state: paused; translate: 0 -2px; scale: 1.025; }
+}
+@keyframes product-photo-drift {
+  0%, 100% { translate: 0 2px; scale: 1.018; }
+  50% { translate: 0 -4px; scale: 1.045; }
+}
 .product-badge { position: absolute; top: 9px; left: 9px; max-width: calc(100% - 18px); padding: 6px 8px; background: rgba(255,255,255,.92); color: var(--navy); font-size: 8px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .product-card-body { position: relative; padding: 13px 12px 12px; transform: translateZ(9px); }
 .product-category { margin: 0 0 6px; color: #8b754c; font-size: 8px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }
@@ -762,5 +775,6 @@ h1, h2, h3, p { margin-top: 0; }
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
   .motion-ready .motion-reveal, .motion-ready .motion-reveal.is-revealed { opacity: 1 !important; transform: none !important; transition: none !important; }
   .product-card, .product-card:hover, .product-image-link, .product-image-wrap img, .product-card-body, .product-detail-image, .product-detail-image img, .hero-visual > img, .hero-stamp { transform: none !important; }
+  .product-image-wrap img, .product-detail-image img { animation: none !important; translate: none !important; scale: none !important; }
   .cart-flight-image { display: none !important; }
 }
