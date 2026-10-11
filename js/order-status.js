@@ -49,7 +49,13 @@ async function checkOrder() {
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "We could not check your order right now.");
 
-    if (result.status === "APPROVED") {
+    if (result.status === "REJECTED") {
+      const codOrder = result.paymentMethod === "COD";
+      setOrderState("failed", codOrder ? "Your COD order was not approved." : "Your order was not approved.", codOrder
+        ? "GurunanakStore could not accept this cash-on-delivery order. Contact the store on WhatsApp if you need help."
+        : "GurunanakStore did not approve this order. If you already transferred money, contact the store on WhatsApp with your transaction reference; this status does not confirm a refund.", (codOrder ? "Cash due on delivery: ₹" : "Order amount: ₹") + Number(result.amountRupees).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+      window.clearInterval(pollTimer);
+    } else if (result.status === "APPROVED") {
       const codOrder = result.paymentMethod === "COD";
       setOrderState("confirmed", codOrder ? "Your COD order is approved!" : "Your order is approved!", codOrder
         ? "GurunanakStore accepted your cash-on-delivery order. Please pay in cash when it is delivered."

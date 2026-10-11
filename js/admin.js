@@ -54,7 +54,11 @@ function renderOrders(orders) {
     const created = new Date(order.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
     const phoneDigits = String(order.customer.phone).replace(/\D/g, "");
     const isApproved = order.status === "APPROVED";
+    const isRejected = order.status === "REJECTED";
+    const isPending = !isApproved && !isRejected;
     const isCOD = order.paymentMethod === "COD";
+    const stateClass = isApproved ? "is-approved" : isRejected ? "is-rejected" : "is-pending";
+    const stateLabel = isApproved ? "Approved" : isRejected ? "Rejected" : "Needs review";
     const paymentMethod = isCOD ? "Cash on delivery" : "PhonePe / UPI";
     const paymentReference = isCOD
       ? '<p><span>Transaction reference</span><strong>Not needed for COD</strong></p>'
@@ -64,19 +68,38 @@ function renderOrders(orders) {
     const trackingCode = order.trackingCode
       ? '<p><span>Customer tracking code</span><strong><code>' + escapeAdminHTML(order.trackingCode) + '</code></strong></p>'
       : '<p><span>Customer tracking code</span><strong>Older order; use its existing reference</strong></p>';
+    const actionButtons = (isPending
+      ? '<button class="button button-gold admin-approve-button" type="button" data-approve-order="' + escapeAdminHTML(order.orderId) + '" data-payment-method="' + (isCOD ? 'COD' : 'PHONEPE_UPI') + '" ' + (!isCOD && !order.paymentReference ? 'disabled title="Ask the customer for their transaction reference first."' : '') + '>' + (isCOD ? 'Approve COD order' : 'Confirm payment &amp; approve order') + '</button>' +
+        '<button class="button button-outline admin-reject-button" type="button" data-reject-order="' + escapeAdminHTML(order.orderId) + '">Reject order</button>'
+      : '') +
+      '<button class="button button-outline admin-delete-button" type="button" data-delete-order="' + escapeAdminHTML(order.orderId) + '">Delete order</button>';
+    const statusNote = isApproved
+      ? '<p class="admin-approved-note">' + (isCOD ? 'COD order accepted; payment is due at delivery. ' : 'Order approved and PhonePe payment manually reviewed. ') + escapeAdminHTML(new Date(order.confirmedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })) + '.</p>'
+      : isRejected
+        ? '<p class="admin-rejected-note">Order rejected' + (order.rejectedAt ? ' on ' + escapeAdminHTML(new Date(order.rejectedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })) : '') + '. PhonePe payment status is unchanged; no refund is initiated here.</p>'
+        : isCOD
+          ? '<p class="admin-order-reminder">Approve the order details and availability. Collect cash on delivery; this does not mark an online payment as paid.</p>'
+          : order.paymentReference
+            ? '<p class="admin-order-reminder">Check this reference in PhonePe Business before approving. The website cannot verify QR transfers by reference alone.</p>'
+            : '<p class="admin-order-reminder">Ask the customer for their PhonePe transaction reference before approving.</p>';
+
     return '<article class="admin-order-card" data-order-card="' + escapeAdminHTML(order.orderId) + '">' +
       '<div class="admin-order-top"><div><p class="eyebrow eyebrow-dark">ORDER ' + escapeAdminHTML(order.orderId) + '</p><span class="admin-order-date">' + escapeAdminHTML(created) + '</span></div>' +
-      '<span class="admin-order-state ' + (isApproved ? 'is-approved' : 'is-pending') + '">' + (isApproved ? 'Approved' : 'Needs review') + '</span></div>' +
+      '<span class="admin-order-state ' + stateClass + '">' + stateLabel + '</span></div>' +
       '<div class="admin-order-columns"><section><h2>Customer</h2><p><strong>' + escapeAdminHTML(order.customer.name) + '</strong></p><p><a href="tel:+91' + encodeURIComponent(phoneDigits) + '">' + escapeAdminHTML(order.customer.phone) + '</a></p><p class="admin-order-address">' + escapeAdminHTML(order.customer.address) + '</p><p><span>Payment method</span><strong>' + paymentMethod + '</strong></p>' + trackingCode + paymentReference + (isCOD ? '' : '<p><span>UPI QR reference</span><strong>' + escapeAdminHTML(order.checkoutReference) + '</strong></p>') + '</section>' +
       '<section><h2>Items</h2><ul class="admin-item-list">' + itemRows + '</ul><div class="admin-order-total"><span>Items total</span><strong>' + adminPrice(order.subtotalRupees) + '</strong></div>' + (isCOD ? '' : '<div class="admin-order-total"><span>PhonePe discount</span><strong>−' + adminPrice(order.discountRupees) + '</strong></div>') + '<div class="admin-order-total admin-order-payable"><span>' + (isCOD ? 'Cash due on delivery' : 'QR amount') + '</span><strong>' + adminPrice(order.amountRupees) + '</strong></div></section></div>' +
-      (isApproved
-        ? '<p class="admin-approved-note">' + (isCOD ? 'COD order accepted; payment is due at delivery. ' : 'Order approved and PhonePe payment verified. ') + escapeAdminHTML(new Date(order.confirmedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })) + '.</p>'
-        : '<button class="button button-gold admin-approve-button" type="button" data-approve-order="' + escapeAdminHTML(order.orderId) + '" data-payment-method="' + (isCOD ? 'COD' : 'PHONEPE_UPI') + '" ' + (!isCOD && !order.paymentReference ? 'disabled title="Ask the customer for their transaction reference first."' : '') + '>' + (isCOD ? 'Approve COD order' : 'Confirm payment & approve order') + '</button>' + (isCOD ? '<p class="admin-order-reminder">Approve the order details and availability. Collect cash on delivery; this does not mark an online payment as paid.</p>' : order.paymentReference ? '<p class="admin-order-reminder">Check this reference in PhonePe Business before approving. The website cannot verify QR transfers by reference alone.</p>' : '<p class="admin-order-reminder">Ask the customer for their PhonePe transaction reference before approving.</p>')) +
+      '<div class="admin-order-actions">' + actionButtons + '</div>' + statusNote +
       '</article>';
   }).join("");
 
   ordersContainer.querySelectorAll("[data-approve-order]").forEach((button) => {
     button.addEventListener("click", approveOrder);
+  });
+  ordersContainer.querySelectorAll("[data-reject-order]").forEach((button) => {
+    button.addEventListener("click", rejectOrder);
+  });
+  ordersContainer.querySelectorAll("[data-delete-order]").forEach((button) => {
+    button.addEventListener("click", deleteOrder);
   });
 }
 
@@ -115,6 +138,50 @@ async function approveOrder(event) {
     dashboardNotice.textContent = error.message;
     button.disabled = false;
     button.textContent = isCOD ? "Approve COD order" : "Confirm payment & approve order";
+  }
+}
+
+async function rejectOrder(event) {
+  const button = event.currentTarget;
+  const orderId = button.dataset.rejectOrder;
+  if (!window.confirm("Reject this order? The customer’s tracking page will show that it was not approved. This does not verify or refund a PhonePe payment.")) return;
+  button.disabled = true;
+  button.textContent = "Rejecting order…";
+  try {
+    await adminFetch("/api/admin/orders/" + encodeURIComponent(orderId) + "/reject", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({})
+    });
+    dashboardNotice.textContent = "Order rejected. The customer’s tracking page will update automatically.";
+    await loadOrders();
+  } catch (error) {
+    dashboardNotice.textContent = error.message;
+    button.disabled = false;
+    button.textContent = "Reject order";
+  }
+}
+
+async function deleteOrder(event) {
+  const button = event.currentTarget;
+  const orderId = button.dataset.deleteOrder;
+  const orderCard = button.closest("[data-order-card]");
+  const trackingCode = orderCard && orderCard.querySelector(".admin-order-top .eyebrow")?.textContent.replace(/^ORDER\s+/i, "");
+  if (!window.confirm("Permanently delete order " + (trackingCode || orderId) + "? It will disappear from the admin history and its customer tracking link will no longer work.")) return;
+  button.disabled = true;
+  button.textContent = "Deleting…";
+  try {
+    await adminFetch("/api/admin/orders/" + encodeURIComponent(orderId) + "/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({})
+    });
+    dashboardNotice.textContent = "Order deleted from the store history.";
+    await loadOrders();
+  } catch (error) {
+    dashboardNotice.textContent = error.message;
+    button.disabled = false;
+    button.textContent = "Delete order";
   }
 }
 

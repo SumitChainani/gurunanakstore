@@ -1284,22 +1284,31 @@ async function refreshCustomerOrderStatuses(container, notice) {
       const response = await fetch(API_BASE_URL + "/api/orders/status?orderId=" + encodeURIComponent(card.dataset.customerOrder), { cache: "no-store" });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Status is temporarily unavailable.");
-      statusBadge.classList.toggle("is-approved", result.status === "APPROVED");
-      statusBadge.classList.toggle("is-pending", result.status !== "APPROVED");
-      statusBadge.textContent = result.status === "APPROVED" ? "Approved" : "Waiting for approval";
-      note.textContent = result.paymentMethod === "COD"
-        ? result.status === "APPROVED"
-          ? "Your COD order is accepted. Pay cash when it is delivered."
-          : "Your COD request is waiting for store approval. No advance UPI payment is needed."
-        : result.status === "APPROVED"
-          ? "The store has checked this order. Use the tracking page for the latest details."
-          : result.paymentStatus === "REFERENCE_PROVIDED"
-            ? "Payment reference received. The store will update this order after reviewing it."
-            : "The store has this order and will update its approval status here.";
+      const isApproved = result.status === "APPROVED";
+      const isRejected = result.status === "REJECTED";
+      const isCOD = result.paymentMethod === "COD";
+      statusBadge.classList.toggle("is-approved", isApproved);
+      statusBadge.classList.toggle("is-rejected", isRejected);
+      statusBadge.classList.toggle("is-pending", !isApproved && !isRejected);
+      statusBadge.textContent = isApproved ? "Approved" : isRejected ? "Rejected" : "Waiting for approval";
+      note.textContent = isRejected
+        ? isCOD
+          ? "The store did not accept this COD order. Contact the store if you need help."
+          : "The store did not approve this order. If you transferred money, contact the store to discuss next steps; this status does not confirm a refund."
+        : isCOD
+          ? isApproved
+            ? "Your COD order is accepted. Pay cash when it is delivered."
+            : "Your COD request is waiting for store approval. No advance UPI payment is needed."
+          : isApproved
+            ? "The store has checked this order. Use the tracking page for the latest details."
+            : result.paymentStatus === "REFERENCE_PROVIDED"
+              ? "Payment reference received. The store will update this order after reviewing it."
+              : "The store has this order and will update its approval status here.";
       const total = card.querySelector("[data-order-total]");
       if (total && Number.isFinite(Number(result.amountRupees))) total.textContent = formatPrice(result.amountRupees);
     } catch (error) {
       statusBadge.classList.remove("is-approved");
+      statusBadge.classList.remove("is-rejected");
       statusBadge.classList.add("is-pending");
       statusBadge.textContent = "Status unavailable";
       note.textContent = error.message || "We could not refresh this order yet. Try again shortly.";

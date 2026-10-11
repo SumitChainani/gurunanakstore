@@ -307,3 +307,94 @@ test("owner approval updates the public customer status", async () => {
   assert.equal(customerStatus.status, 200);
   assert.equal((await customerStatus.json()).status, "APPROVED");
 });
+
+test("owner can reject pending orders and delete rejected or approved orders", async () => {
+  const createOrder = async (checkoutReference, paymentMethod) => {
+    const response = await send("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: [{ productId: 1, quantity: 1 }],
+        customer: { name: "Order Desk Test", phone: "8815960892", address: "8 Order Desk Road, Pune 411001" },
+        checkoutReference,
+        paymentReference: paymentMethod === "COD" ? "IGNORED" : "UPI-REJECT-TEST",
+        paymentMethod
+      })
+    });
+    assert.equal(response.status, 201);
+    return response.json();
+  };
+
+  const login = await send("/api/admin/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: OWNER_PASSWORD })
+  });
+  assert.equal(login.status, 200);
+  const session = await login.json();
+  const authHeaders = { Authorization: "Bearer " + session.token, "Content-Type": "application/json" };
+
+  const rejectedOrder = await createOrder("GS9876543210123AB12CD34", "PHONEPE_UPI");
+  const unauthenticatedReject = await send("/api/admin/orders/" + rejectedOrder.orderId + "/reject", { method: "POST" });
+  assert.equal(unauthenticatedReject.status, 401);
+  const rejectResponse = await send("/api/admin/orders/" + rejectedOrder.orderId + "/reject", {
+    method: "POST",
+    headers: authHeaders,
+    body: JSON.stringify({})
+  });
+  assert.equal(rejectResponse.status, 200);
+  const rejected = await rejectResponse.json();
+  assert.equal(rejected.status, "REJECTED");
+  assert.equal(rejected.paymentStatus, "REFERENCE_PROVIDED");
+  assert.ok(rejected.rejectedAt);
+  assert.equal("customer" in rejected, false);
+
+  const approveRejected = await send("/api/admin/orders/" + rejectedOrder.orderId + "/approve", {
+    method: "POST",
+    headers: authHeaders,
+    body: JSON.stringify({})
+  });
+  assert.equal(approveRejected.status, 409);
+
+  const rejectedCustomerStatus = await send("/api/orders/status?trackingCode=" + encodeURIComponent(rejectedOrder.trackingCode));
+  assert.equal(rejectedCustomerStatus.status, 200);
+  assert.equal((await rejectedCustomerStatus.json()).status, "REJECTED");
+
+  const unauthenticatedDelete = await send("/api/admin/orders/" + rejectedOrder.orderId + "/delete", { method: "POST" });
+  assert.equal(unauthenticatedDelete.status, 401);
+  const deleteRejected = await send("/api/admin/orders/" + rejectedOrder.orderId + "/delete", {
+    method: "POST",
+    headers: authHeaders,
+    body: JSON.stringify({})
+  });
+  assert.equal(deleteRejected.status, 200);
+  assert.equal((await deleteRejected.json()).deleted, true);
+  const deletedRejectedStatus = await send("/api/orders/status?trackingCode=" + encodeURIComponent(rejectedOrder.trackingCode));
+  assert.equal(deletedRejectedStatus.status, 404);
+
+  const approvedCODOrder = await createOrder("GS9876543210124AB12CD34", "COD");
+  const approveCOD = await send("/api/admin/orders/" + approvedCODOrder.orderId + "/approve", {
+    method: "POST",
+    headers: authHeaders,
+    body: JSON.stringify({})
+  });
+  assert.equal(approveCOD.status, 200);
+  assert.equal((await approveCOD.json()).paymentStatus, "COD_ACCEPTED");
+
+  const rejectApproved = await send("/api/admin/orders/" + approvedCODOrder.orderId + "/reject", {
+    method: "POST",
+    headers: authHeaders,
+    body: JSON.stringify({})
+  });
+  assert.equal(rejectApproved.status, 409);
+
+  const deleteApproved = await send("/api/admin/orders/" + approvedCODOrder.orderId + "/delete", {
+    method: "POST",
+    headers: authHeaders,
+    body: JSON.stringify({})
+  });
+  assert.equal(deleteApproved.status, 200);
+  const adminList = await send("/api/admin/orders", { headers: { Authorization: "Bearer " + session.token } });
+  assert.equal(adminList.status, 200);
+  assert.equal((await adminList.json()).orders.some((order) => order.orderId === approvedCODOrder.orderId || order.orderId === rejectedOrder.orderId), false);
+});

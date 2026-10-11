@@ -11,6 +11,8 @@
     POST /api/admin/login             Check the private owner password
     GET  /api/admin/orders            List saved orders (owner only)
     POST /api/admin/orders/:id/approve Approve a payment/order (owner only)
+    POST /api/admin/orders/:id/reject Reject an order (owner only)
+    POST /api/admin/orders/:id/delete Delete an order (owner only)
     POST /api/payments/create         Create PhonePe Standard Checkout order
     GET  /api/payments/status?id=...  Verify a PhonePe Gateway order
 */
@@ -268,7 +270,8 @@ function publicOrder(order) {
     paymentStatus: order.paymentStatus,
     amountRupees: order.amountRupees,
     createdAt: order.createdAt,
-    confirmedAt: order.confirmedAt
+    confirmedAt: order.confirmedAt,
+    rejectedAt: order.rejectedAt || null
   };
 }
 
@@ -575,6 +578,9 @@ const server = http.createServer(async (request, response) => {
       const order = await updateOrders((orders) => {
         const foundOrder = orders.find((entry) => entry.orderId === orderId);
         if (!foundOrder) return null;
+        if (foundOrder.status === "REJECTED") {
+          throw Object.assign(new Error("This order was rejected and cannot be approved."), { statusCode: 409 });
+        }
         if (foundOrder.status !== "APPROVED") {
           if (foundOrder.paymentMethod === "COD") {
             foundOrder.status = "APPROVED";
@@ -597,8 +603,56 @@ const server = http.createServer(async (request, response) => {
       const status = Number(error.statusCode) || 500;
       if (status >= 500) console.error("Order approval could not be saved:", error.message);
       return sendJson(response, status, {
-        error: status === 400 ? error.message : "We could not save the approval. Please try again."
+        error: status === 400 || status === 409 ? error.message : "We could not save the approval. Please try again."
       }, origin);
+    }
+  }
+
+  const rejectMatch = requestUrl.pathname.match(/^\/api\/admin\/orders\/([A-Za-z0-9_-]{24})\/reject$/);
+  if (rejectMatch && request.method === "POST") {
+    if (!hasAdminAccess(request)) return sendJson(response, 401, { error: "Owner sign-in is required." }, origin);
+    try {
+      const orderId = rejectMatch[1];
+      const order = await updateOrders((orders) => {
+        const foundOrder = orders.find((entry) => entry.orderId === orderId);
+        if (!foundOrder) return null;
+        if (foundOrder.status === "APPROVED") {
+          throw Object.assign(new Error("An approved order cannot be rejected here."), { statusCode: 409 });
+        }
+        if (foundOrder.status !== "REJECTED") {
+          foundOrder.status = "REJECTED";
+          foundOrder.rejectedAt = new Date().toISOString();
+        }
+        // Leave paymentStatus unchanged: rejecting an order does not verify or refund a payment.
+        return publicOrder(foundOrder);
+      });
+      if (!order) return sendJson(response, 404, { error: "We could not find this order." }, origin);
+      return sendJson(response, 200, order, origin);
+    } catch (error) {
+      const status = Number(error.statusCode) || 500;
+      if (status >= 500) console.error("Order rejection could not be saved:", error.message);
+      return sendJson(response, status, {
+        error: status === 409 ? error.message : "We could not save the rejection. Please try again."
+      }, origin);
+    }
+  }
+
+  const deleteMatch = requestUrl.pathname.match(/^\/api\/admin\/orders\/([A-Za-z0-9_-]{24})\/delete$/);
+  if (deleteMatch && request.method === "POST") {
+    if (!hasAdminAccess(request)) return sendJson(response, 401, { error: "Owner sign-in is required." }, origin);
+    try {
+      const orderId = deleteMatch[1];
+      const deleted = await updateOrders((orders) => {
+        const orderIndex = orders.findIndex((entry) => entry.orderId === orderId);
+        if (orderIndex < 0) return false;
+        orders.splice(orderIndex, 1);
+        return true;
+      });
+      if (!deleted) return sendJson(response, 404, { error: "We could not find this order." }, origin);
+      return sendJson(response, 200, { deleted: true, orderId }, origin);
+    } catch (error) {
+      console.error("Order deletion could not be saved:", error.message);
+      return sendJson(response, 500, { error: "We could not delete this order. Please try again." }, origin);
     }
   }
 
