@@ -19,7 +19,7 @@ const API_BASE_URL = String(window.GURUNANAK_API_URL || window.GURUNANAK_PHONEPE
 const PHONEPE_API_BASE_URL = String(window.GURUNANAK_PHONEPE_API_URL || API_BASE_URL).replace(/\/+$/, "");
 const STORE_UPI_ID = String(window.GURUNANAK_UPI_ID || "").trim();
 const STORE_UPI_PAYEE_NAME = String(window.GURUNANAK_UPI_PAYEE_NAME || STORE_NAME).trim();
-const MOTION_REVEAL_SELECTOR = ".section-heading, .category-row, .product-card, .brand-promise, .benefits-section article, .service-strip > *, .reviews-section > div, .about-copy > div, .values-section article, .about-cta, .contact-card, .contact-form, .product-detail-media, .product-detail-content, .product-reviews-header, .product-review-card, .review-form, .cart-item, .order-summary, .checkout-intro, .checkout-form, .payment-result";
+const MOTION_REVEAL_SELECTOR = ".section-heading, .category-row, .product-card, .shop-tools, .catalogue-note, .brand-promise, .benefits-section article, .service-strip > *, .reviews-section > div, .about-copy > div, .values-section article, .about-cta, .contact-card, .contact-form, .product-detail-media, .product-detail-content, .product-reviews-header, .product-review-card, .review-form, .cart-item, .order-summary, .checkout-intro, .checkout-form, .payment-result";
 let motionRevealObserver = null;
 
 function formatPrice(amount) {
@@ -1739,9 +1739,8 @@ function initPremiumMotion() {
   observeMotionTargets(document);
 }
 
-// A small pointer tilt adds depth on laptops and desktops; touch and
-// reduced-motion users keep the steady, unanimated layout.
-function initThreeDTilt() {
+// A pointer-following highlight adds a soft 2D studio light on desktops.
+function initPointerLighting() {
   const prefersReducedMotion = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const supportsFinePointer = typeof window.matchMedia === "function" && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
   if (prefersReducedMotion || !supportsFinePointer) return;
@@ -1749,16 +1748,16 @@ function initThreeDTilt() {
   let activeSurface = null;
   const surfaceSelector = ".product-card, .product-detail-image, .hero-visual, .category-row a, .order-summary, .checkout-form, .payment-method-option";
 
-  function resetTilt(surface) {
-    surface.style.removeProperty("--tilt-x");
-    surface.style.removeProperty("--tilt-y");
-    surface.classList.remove("is-tilting");
+  function resetPointerLight(surface) {
+    surface.style.removeProperty("--pointer-x");
+    surface.style.removeProperty("--pointer-y");
+    surface.classList.remove("has-pointer-light");
   }
 
   document.addEventListener("pointermove", (event) => {
     if (event.pointerType !== "mouse" || !(event.target instanceof Element)) return;
     const surface = event.target.closest(surfaceSelector);
-    if (activeSurface && surface !== activeSurface) resetTilt(activeSurface);
+    if (activeSurface && surface !== activeSurface) resetPointerLight(activeSurface);
     if (!surface) {
       activeSurface = null;
       return;
@@ -1768,16 +1767,9 @@ function initThreeDTilt() {
     if (!bounds.width || !bounds.height) return;
     const pointerX = (event.clientX - bounds.left) / bounds.width - 0.5;
     const pointerY = (event.clientY - bounds.top) / bounds.height - 0.5;
-    const tiltStrength = surface.matches(".product-card") ? 5
-      : surface.matches(".product-detail-image") ? 3
-        : surface.matches(".hero-visual") ? 1.4
-          : surface.matches(".category-row a") ? 1.8
-            : surface.matches(".payment-method-option") ? 1.2 : 0.8;
-    surface.style.setProperty("--tilt-x", `${(-pointerY * tiltStrength).toFixed(2)}deg`);
-    surface.style.setProperty("--tilt-y", `${(pointerX * tiltStrength).toFixed(2)}deg`);
     surface.style.setProperty("--pointer-x", `${Math.max(0, Math.min(100, pointerX * 100 + 50)).toFixed(1)}%`);
     surface.style.setProperty("--pointer-y", `${Math.max(0, Math.min(100, pointerY * 100 + 50)).toFixed(1)}%`);
-    surface.classList.add("is-tilting");
+    surface.classList.add("has-pointer-light");
     activeSurface = surface;
   }, { passive: true });
 
@@ -1785,7 +1777,7 @@ function initThreeDTilt() {
     if (!(event.target instanceof Element)) return;
     const surface = event.target.closest(surfaceSelector);
     if (!surface || (event.relatedTarget instanceof Node && surface.contains(event.relatedTarget))) return;
-    resetTilt(surface);
+    resetPointerLight(surface);
     if (activeSurface === surface) activeSurface = null;
   });
 }
@@ -1810,6 +1802,6 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-year]").forEach((element) => {
     element.textContent = new Date().getFullYear();
   });
-  initThreeDTilt();
+  initPointerLighting();
   initPremiumMotion();
 });
