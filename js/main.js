@@ -11,6 +11,7 @@ const STORE_PHONE = "918815960890";
 const PHONEPE_DISCOUNT_PERCENT = 10;
 const CART_STORAGE_KEY = "gurunanakAccessoriesCart";
 const CHECKOUT_DRAFT_STORAGE_KEY = "gurunanakCheckoutDraft";
+const CHECKOUT_FLY_ORIGIN_STORAGE_KEY = "gurunanakCheckoutFlyOrigin";
 const PHONEPE_RETURN_STORAGE_KEY = "gurunanakPhonePePendingOrder";
 const PRODUCT_REVIEWS_STORAGE_KEY = "gurunanakProductReviews";
 const ORDER_HISTORY_STORAGE_KEY = "gurunanakCustomerOrderHistory";
@@ -175,6 +176,33 @@ function checkoutItems() {
 function beginCheckoutFromCart() {
   const items = cartItems();
   if (items.length && saveCheckoutDraft(items)) clearCartForCheckout();
+}
+
+function saveCheckoutFlyOrigin(element) {
+  if (!element) return;
+  const bounds = element.getBoundingClientRect();
+  if (!bounds.width || !bounds.height) return;
+  try {
+    sessionStorage.setItem(CHECKOUT_FLY_ORIGIN_STORAGE_KEY, JSON.stringify({
+      x: bounds.left + bounds.width / 2,
+      y: bounds.top + bounds.height / 2,
+      savedAt: Date.now()
+    }));
+  } catch (error) {
+    // Checkout still works if the browser blocks session storage.
+  }
+}
+
+function takeCheckoutFlyOrigin() {
+  try {
+    const origin = JSON.parse(sessionStorage.getItem(CHECKOUT_FLY_ORIGIN_STORAGE_KEY) || "null");
+    sessionStorage.removeItem(CHECKOUT_FLY_ORIGIN_STORAGE_KEY);
+    if (!origin || Date.now() - Number(origin.savedAt) > 120000
+      || !Number.isFinite(Number(origin.x)) || !Number.isFinite(Number(origin.y))) return null;
+    return { x: Number(origin.x), y: Number(origin.y) };
+  } catch (error) {
+    return null;
+  }
 }
 
 function clearCheckoutDraft() {
@@ -725,6 +753,7 @@ function renderCartPage() {
     checkoutLink.addEventListener("click", (event) => {
       const standardClick = event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
       if (!standardClick) {
+        saveCheckoutFlyOrigin(checkoutLink);
         beginCheckoutFromCart();
         return;
       }
@@ -732,6 +761,7 @@ function renderCartPage() {
       event.preventDefault();
       if (checkoutNavigationPending) return;
       checkoutNavigationPending = true;
+      saveCheckoutFlyOrigin(checkoutLink);
       beginCheckoutFromCart();
       checkoutLink.setAttribute("aria-disabled", "true");
       checkoutLink.classList.add("is-vanishing");
@@ -790,17 +820,80 @@ function renderCheckoutPage() {
 
   renderDynamicUPIQRCode(target, paymentUri, paymentTotal.payable);
   observeMotionTargets(target);
+  observeCheckoutApprovalButton(target);
+  observeCheckoutQRCode(target);
 
   target.querySelector("[data-checkout-form]").addEventListener("submit", submitOrder);
   const checkoutForm = target.querySelector("[data-checkout-form]");
   checkoutForm.querySelectorAll('input[name="paymentMethod"]').forEach((input) => {
-    input.addEventListener("change", () => updateCheckoutPaymentMethod(checkoutForm, paymentTotal));
+    input.addEventListener("change", () => updateCheckoutPaymentMethod(checkoutForm, paymentTotal, true));
   });
   updateCheckoutPaymentMethod(checkoutForm, paymentTotal);
 }
 
-function updateCheckoutPaymentMethod(form, paymentTotal) {
+function playCheckoutApprovalTextAnimation(label, origin = null) {
+  if (!label || (typeof window.matchMedia === "function"
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+  const targetBounds = label.getBoundingClientRect();
+  const startX = origin ? origin.x - (targetBounds.left + targetBounds.width / 2) : 18;
+  const startY = origin ? origin.y - (targetBounds.top + targetBounds.height / 2) : 18;
+  label.style.setProperty("--checkout-fly-x", `${Math.round(startX)}px`);
+  label.style.setProperty("--checkout-fly-y", `${Math.round(startY)}px`);
+  label.classList.remove("checkout-submit-flight");
+  void label.offsetWidth;
+  label.classList.add("checkout-submit-flight");
+}
+
+function observeCheckoutApprovalButton(root) {
+  const button = root.querySelector(".whatsapp-order-button");
+  const label = button && button.querySelector("[data-checkout-submit-label]");
+  if (!button || !label || typeof window.IntersectionObserver !== "function"
+    || (typeof window.matchMedia === "function"
+      && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+
+  const observer = new window.IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      label.dataset.checkoutSeen = "true";
+      playCheckoutApprovalTextAnimation(label, takeCheckoutFlyOrigin());
+      observer.disconnect();
+    });
+  }, { threshold: 0.45, rootMargin: "0px 0px -4% 0px" });
+  observer.observe(button);
+}
+
+function playCheckoutQRCodeAnimation(qr) {
+  if (!qr || (typeof window.matchMedia === "function"
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+  qr.classList.remove("qr-ready");
+  void qr.offsetWidth;
+  qr.dataset.qrSeen = "true";
+  qr.classList.add("qr-ready");
+}
+
+function observeCheckoutQRCode(root) {
+  const qr = root.querySelector("[data-upi-qr]");
+  if (!qr || !qr.querySelector("svg")) return;
+  if (typeof window.IntersectionObserver !== "function") {
+    playCheckoutQRCodeAnimation(qr);
+    return;
+  }
+
+  const observer = new window.IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      if (qr.dataset.qrSeen !== "true") playCheckoutQRCodeAnimation(qr);
+      observer.disconnect();
+    });
+  }, { threshold: 0.2, rootMargin: "0px 0px -5% 0px" });
+  observer.observe(qr);
+}
+
+function updateCheckoutPaymentMethod(form, paymentTotal, animateSwitch = false) {
   const isCOD = form.elements.paymentMethod.value === "COD";
+  const selectedPaymentMethod = isCOD ? "COD" : "PHONEPE_UPI";
+  const paymentMethodChanged = Boolean(form.dataset.selectedPaymentMethod)
+    && form.dataset.selectedPaymentMethod !== selectedPaymentMethod;
   const upiDetails = form.querySelector("[data-upi-payment-details]");
   const codNote = form.querySelector("[data-cod-payment-note]");
   const totalLabel = form.closest(".checkout-page").querySelector("[data-checkout-total-label]");
@@ -808,13 +901,37 @@ function updateCheckoutPaymentMethod(form, paymentTotal) {
   const methodNote = form.querySelector("[data-payment-method-note]");
   const submitLabel = form.querySelector("[data-checkout-submit-label]");
   const paymentReference = form.elements.paymentReference;
+  const qrWasHidden = upiDetails && upiDetails.hidden;
+  form.dataset.selectedPaymentMethod = selectedPaymentMethod;
   form.querySelectorAll(".payment-method-option").forEach((option) => {
     const input = option.querySelector('input[name="paymentMethod"]');
-    option.classList.toggle("is-selected", Boolean(input && input.checked));
+    const isSelected = Boolean(input && input.checked);
+    option.classList.toggle("is-selected", isSelected);
+    option.classList.toggle("is-phonepe-selected", isSelected && input.value === "PHONEPE_UPI");
+    option.classList.toggle("is-cod-selected", isSelected && input.value === "COD");
+    option.classList.remove("payment-option-light");
   });
+  if (animateSwitch && paymentMethodChanged) {
+    const selectedOption = form.querySelector(".payment-method-option.is-selected");
+    if (selectedOption) {
+      window.clearTimeout(selectedOption.paymentOptionLightTimer);
+      void selectedOption.offsetWidth;
+      selectedOption.classList.add("payment-option-light");
+      selectedOption.paymentOptionLightTimer = window.setTimeout(() => {
+        selectedOption.classList.remove("payment-option-light");
+      }, 900);
+    }
+  }
   if (upiDetails) upiDetails.hidden = isCOD;
   if (codNote) codNote.hidden = !isCOD;
-  if (submitLabel) submitLabel.textContent = isCOD ? "Send Order to WhatsApp" : "Send for Order Approval";
+  if (!isCOD && qrWasHidden) playCheckoutQRCodeAnimation(form.querySelector("[data-upi-qr]"));
+  if (submitLabel) {
+    const nextLabel = isCOD ? "Send Order to WhatsApp" : "Send for Order Approval";
+    if (submitLabel.textContent !== nextLabel) {
+      submitLabel.textContent = nextLabel;
+      if (submitLabel.dataset.checkoutSeen === "true") playCheckoutApprovalTextAnimation(submitLabel);
+    }
+  }
   if (paymentReference) {
     paymentReference.required = !isCOD;
     if (isCOD) paymentReference.value = "";
@@ -1272,6 +1389,18 @@ function initOrderHistoryPage() {
   window.setInterval(() => refreshCustomerOrderStatuses(container, notice), 20000);
 }
 
+async function vanishApprovalSubmitButton(button, originalMarkup) {
+  if (!button) return;
+  button.disabled = true;
+  button.innerHTML = originalMarkup;
+  const reducedMotion = typeof window.matchMedia === "function"
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reducedMotion) return;
+
+  button.classList.add("approval-submit-vanishing");
+  await new Promise((resolve) => window.setTimeout(resolve, 440));
+}
+
 async function submitOrder(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -1382,6 +1511,7 @@ async function submitOrder(event) {
     return;
   }
   const whatsappOpened = savedOrder ? false : openWhatsApp(message);
+  await vanishApprovalSubmitButton(submitButton, initialButtonText);
   renderManualOrderStatus(target, orderNumber, finalAmount, paymentReference, whatsappOpened, message, savedOrder);
   clearCheckoutDraft();
 }

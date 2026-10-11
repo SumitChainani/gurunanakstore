@@ -306,7 +306,12 @@ h1, h2, h3, p { margin-top: 0; }
 .payment-method-options { display: grid; gap: 9px; margin: 0; padding: 14px; border: 1px solid var(--line); background: #fff; }
 .payment-method-options legend { padding: 0 5px; color: var(--navy); font-family: var(--display); font-size: 19px; font-weight: 600; }
 .checkout-form .payment-method-option { min-height: 58px; display: grid; grid-template-columns: 20px minmax(0, 1fr); align-items: start; gap: 10px; padding: 12px; border: 1px solid #e4e2dd; background: #fff; cursor: pointer; }
+.checkout-form .payment-method-option { position: relative; overflow: hidden; border-radius: 10px; }
+.checkout-form .payment-method-option.is-phonepe-selected { --choice-glow: rgba(95,37,159,.13); --choice-light: rgba(112,69,173,.2); border-color: rgba(95,37,159,.42); background: linear-gradient(110deg, #fff 18%, #fbf8ff 100%); box-shadow: 0 6px 18px var(--choice-glow); }
+.checkout-form .payment-method-option.is-cod-selected { --choice-glow: rgba(40,125,91,.13); --choice-light: rgba(200,164,100,.24); border-color: rgba(57,137,102,.4); background: linear-gradient(110deg, #fff 18%, #f7fbf8 100%); box-shadow: 0 6px 18px var(--choice-glow); }
+.checkout-form .payment-method-option::after { position: absolute; z-index: 1; top: -35%; bottom: -35%; left: -45%; width: 34%; background: linear-gradient(90deg, transparent, var(--choice-light, rgba(95,37,159,.18)), transparent); content: ""; opacity: 0; pointer-events: none; transform: skewX(-20deg); }
 .payment-method-option input[type="radio"] { width: 18px; height: 18px; margin: 2px 0 0; accent-color: #5f259f; }
+.payment-method-option.is-cod-selected input[type="radio"] { accent-color: #287d5b; }
 .payment-method-option > span { display: grid; gap: 4px; }
 .payment-method-option strong { color: var(--navy); font-size: 11px; }
 .payment-method-option small { color: var(--muted); font-size: 9px; font-weight: 400; line-height: 1.5; }
@@ -329,7 +334,7 @@ h1, h2, h3, p { margin-top: 0; }
 .dynamic-qr-panel { display: grid; justify-items: start; gap: 10px; margin-top: 5px; padding-top: 15px; border-top: 1px solid #e5dcef; }
 .dynamic-qr-panel .eyebrow { margin: 0; }
 .dynamic-qr-panel h3 { margin: 0; color: var(--navy); font-family: var(--display); font-size: 22px; font-weight: 600; }
-.dynamic-upi-qr { width: min(100%, 280px); aspect-ratio: 1; display: grid; place-items: center; padding: 12px; border: 1px solid #ded8e5; background: #fff; color: #73572f; font-size: 10px; line-height: 1.6; text-align: center; }
+.dynamic-upi-qr { position: relative; isolation: isolate; width: min(100%, 280px); aspect-ratio: 1; display: grid; place-items: center; padding: 12px; border: 1px solid #ded8e5; border-radius: 15px; background: #fff; box-shadow: 0 12px 32px rgba(25,18,39,.09), inset 0 1px 0 rgba(255,255,255,.9); color: #73572f; font-size: 10px; line-height: 1.6; text-align: center; }
 .dynamic-upi-qr svg { display: block; width: 100%; height: 100%; }
 .dynamic-upi-qr[data-error="true"] { min-height: 90px; aspect-ratio: auto; padding: 16px; }
 .dynamic-qr-amount { margin: 0; color: #4f5660; font-size: 11px; }
@@ -340,21 +345,61 @@ h1, h2, h3, p { margin-top: 0; }
 /* Small checkout responses make payment selection and order entry feel clear. */
 @media (prefers-reduced-motion: no-preference) {
   .checkout-form .payment-method-option { transition: border-color .22s ease, background-color .22s ease, box-shadow .22s ease, transform .22s ease; }
+  .checkout-form .payment-method-option.payment-option-light::after { animation: payment-option-light-sweep .78s cubic-bezier(.18,.72,.25,1) both; }
   .checkout-form .payment-method-option.is-selected { transform: translateY(-1px); border-color: rgba(95,37,159,.45); background: #fcfaff; box-shadow: 0 5px 15px rgba(95,37,159,.08); }
+  .checkout-form .payment-method-option.is-phonepe-selected { border-color: rgba(95,37,159,.42); background: linear-gradient(110deg, #fff 18%, #fbf8ff 100%); box-shadow: 0 6px 18px var(--choice-glow); }
+  .checkout-form .payment-method-option.is-cod-selected { border-color: rgba(57,137,102,.4); background: linear-gradient(110deg, #fff 18%, #f7fbf8 100%); box-shadow: 0 6px 18px var(--choice-glow); }
   .checkout-form input:not([type="radio"]), .checkout-form textarea { transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
   .checkout-form input:not([type="radio"]):focus, .checkout-form textarea:focus { transform: translateY(-1px); border-color: #b79ad2; box-shadow: 0 5px 15px rgba(95,37,159,.08); }
   .checkout-form [data-upi-payment-details]:not([hidden]), .checkout-form [data-cod-payment-note]:not([hidden]) { animation: checkout-method-enter .34s cubic-bezier(.2,.7,.2,1) both; }
+  .whatsapp-order-button [data-checkout-submit-label].checkout-submit-flight { display: inline-block; transform-origin: 50% 100%; animation: checkout-approval-fly-in .72s cubic-bezier(.18,.84,.24,1) both; }
+  .whatsapp-order-button.approval-submit-vanishing { pointer-events: none; animation: order-approval-vanish .44s cubic-bezier(.55,0,.75,.2) both; }
+  .whatsapp-order-button.approval-submit-vanishing:disabled { gap: 0; opacity: 1; cursor: default; }
+  .whatsapp-order-button.approval-submit-vanishing:disabled::after { display: none; }
   .checkout-summary [data-checkout-total].checkout-total-pop { animation: checkout-total-pop .36s cubic-bezier(.2,.8,.25,1.25); }
-  .dynamic-upi-qr { transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; }
-  .dynamic-upi-qr:hover { transform: translateY(-3px); border-color: #cbb8df; box-shadow: 0 10px 24px rgba(95,37,159,.1); }
-  .dynamic-upi-qr svg { animation: checkout-qr-in .45s cubic-bezier(.2,.7,.2,1) both; }
+  .dynamic-upi-qr { transition: transform .3s cubic-bezier(.2,.7,.2,1), box-shadow .3s ease, border-color .3s ease; }
+  .dynamic-upi-qr:hover { transform: translateY(-3px) rotateX(1.5deg); border-color: #cbb8df; box-shadow: 0 17px 36px rgba(95,37,159,.14); }
+  .dynamic-upi-qr.qr-ready { border-color: #b49acb; box-shadow: 0 16px 42px rgba(95,37,159,.17), 0 5px 16px rgba(200,164,100,.12), inset 0 1px 0 rgba(255,255,255,.95); animation: checkout-qr-stage-in .9s cubic-bezier(.18,.84,.24,1) both; }
+  .dynamic-upi-qr.qr-ready::after { position: absolute; z-index: -1; inset: -8px; border: 1px solid rgba(95,37,159,.3); border-radius: 22px; background: linear-gradient(135deg, rgba(95,37,159,.18), rgba(200,164,100,.16), rgba(95,37,159,.12)); box-shadow: 0 0 0 0 rgba(95,37,159,.14); content: ""; pointer-events: none; animation: checkout-qr-halo 1.25s ease-out both; }
+  .dynamic-upi-qr.qr-ready svg { animation: checkout-qr-in .78s cubic-bezier(.18,.84,.24,1) both; transform-origin: center; }
   .whatsapp-order-button:active:not(:disabled) { transform: scale(.985); }
   .whatsapp-order-button:disabled { gap: 10px; opacity: .74; cursor: progress; }
   .whatsapp-order-button:disabled::after { width: 14px; height: 14px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; content: ""; animation: checkout-spinner .72s linear infinite; }
 }
 @keyframes checkout-method-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes payment-option-light-sweep {
+  0% { left: -45%; opacity: 0; }
+  18% { opacity: .85; }
+  100% { left: 120%; opacity: 0; }
+}
+@keyframes checkout-approval-fly-in {
+  0% { opacity: .08; filter: blur(4px); transform: perspective(700px) translate3d(var(--checkout-fly-x, 18px), var(--checkout-fly-y, 18px), -38px) rotateX(52deg) rotateY(-10deg) scale(.94); }
+  58% { opacity: 1; filter: blur(0); transform: perspective(700px) translate3d(-2px, -2px, 8px) rotateX(-5deg) rotateY(1deg) scale(1.025); }
+  78% { transform: perspective(700px) translate3d(1px, 1px, 0) rotateX(2deg) rotateY(0) scale(.995); }
+  100% { opacity: 1; filter: blur(0); transform: perspective(700px) translate3d(0, 0, 0) rotateX(0) rotateY(0) scale(1); }
+}
+@keyframes order-approval-vanish {
+  0% { opacity: 1; filter: blur(0); transform: translateY(0) scale(1); box-shadow: 0 0 0 0 rgba(95,37,159,0); }
+  38% { opacity: 1; filter: blur(0); transform: translateY(-3px) scale(1.015); box-shadow: 0 0 20px 2px rgba(95,37,159,.2); }
+  100% { opacity: 0; filter: blur(4px) brightness(1.18); transform: translateY(-13px) scale(.82); box-shadow: 0 0 28px 8px rgba(200,164,100,0); }
+}
+@keyframes checkout-qr-stage-in {
+  0% { opacity: .25; filter: blur(5px) saturate(.8); transform: perspective(900px) translateY(20px) rotateX(11deg) scale(.68); }
+  58% { opacity: 1; filter: blur(0) saturate(1.08); transform: perspective(900px) translateY(-3px) rotateX(-1deg) scale(1.055); }
+  78% { transform: perspective(900px) translateY(1px) rotateX(1deg) scale(.99); }
+  100% { opacity: 1; filter: blur(0) saturate(1); transform: perspective(900px) translateY(0) rotateX(0) scale(1); }
+}
+@keyframes checkout-qr-halo {
+  0% { opacity: 0; transform: scale(.82); box-shadow: 0 0 0 0 rgba(95,37,159,.14); }
+  48% { opacity: .9; box-shadow: 0 0 0 8px rgba(95,37,159,.1); }
+  100% { opacity: 0; transform: scale(1.055); box-shadow: 0 0 0 16px rgba(200,164,100,0); }
+}
 @keyframes checkout-total-pop { 0% { opacity: .5; transform: translateY(5px) scale(.97); } 65% { opacity: 1; transform: translateY(-2px) scale(1.035); } 100% { transform: translateY(0) scale(1); } }
-@keyframes checkout-qr-in { from { opacity: .55; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+@keyframes checkout-qr-in {
+  0% { opacity: .5; filter: brightness(.75); transform: scale(.9) rotateZ(-1deg); }
+  65% { opacity: 1; filter: brightness(1); transform: scale(1.02) rotateZ(.3deg); }
+  100% { opacity: 1; filter: brightness(1); transform: scale(1) rotateZ(0); }
+}
 @keyframes checkout-spinner { to { transform: rotate(360deg); } }
 .payment-result { max-width: 850px; min-height: 65vh; display: grid; align-content: center; justify-items: start; gap: 15px; margin: 0 auto; }
 .payment-result > .eyebrow { margin: 0; }
