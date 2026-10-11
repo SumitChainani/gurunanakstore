@@ -52,11 +52,31 @@ test("extracts assistant text from the Responses API output format", () => {
   assert.equal(extractAssistantText({ output: [] }), "");
 });
 
-test("instructs the assistant to answer greetings and explain its store-support role", () => {
-  const instructions = buildSupportInstructions({});
-  assert.match(instructions, /greetings and questions about who you are/i);
-  assert.match(instructions, /products, placing orders, PhonePe\/UPI or COD guidance/i);
-  assert.match(instructions, /Do not claim to look up or change a customer's private order/i);
+test("allows general help and anchors store answers to product facts and owner policies", () => {
+  const instructions = buildSupportInstructions();
+  assert.match(instructions, /helpful general-purpose AI/i);
+  assert.match(instructions, /Answer general questions naturally and helpfully/i);
+  assert.match(instructions, /If a store-specific detail is missing or uncertain/i);
+  assert.match(instructions, /Listed catalogue products are available to order/i);
+  assert.match(instructions, /delivery is free and expected in under 7 days/i);
+  assert.match(instructions, /team sends the delivery code to the WhatsApp number provided by the customer/i);
+  assert.match(instructions, /PhonePe\/UPI payment receives a 10% discount/i);
+  assert.match(instructions, /Customers may request a return within 3 days/i);
+  assert.match(instructions, /single continuous unboxing video must show the sealed parcel, shipping label, opening, and product/i);
+  assert.match(instructions, /customer may choose a refund or replacement/i);
+  assert.match(instructions, /An order may be cancelled before it is approved/i);
+  assert.match(instructions, /Every product has a 1–3 month warranty/i);
+  assert.match(instructions, /product that is not working is covered/i);
+  assert.match(instructions, /Never ask for or accept a delivery code/i);
+});
+
+test("uses the storefront's current prices and product facts in the backend catalogue", () => {
+  const instructions = buildSupportInstructions();
+  assert.match(instructions, /"name":"Helmet LED – Dual Beam Smart Light[^\n]+"price":359/);
+  assert.match(instructions, /"name":"HJG 3-Lens LED Motorcycle Light[^\n]+"price":609/);
+  assert.match(instructions, /"category":"Rider gear"/);
+  assert.match(instructions, /"fitment":"Please confirm helmet compatibility/);
+  assert.match(instructions, /product\.html\?id=1/);
 });
 
 test("calls the Responses API with a private key, bounded output, no storage, and redacted chat", async () => {
@@ -86,7 +106,7 @@ test("calls the Responses API with a private key, bounded output, no storage, an
   assert.equal(requestBody.model, "gpt-4.1-mini");
   assert.equal(requestBody.store, false);
   assert.equal(requestBody.max_output_tokens, 280);
-  assert.match(requestBody.instructions, /greetings and questions about who you are/i);
+  assert.match(requestBody.instructions, /helpful general-purpose AI/i);
   assert.doesNotMatch(requestBody.input[0].content, /8815960890|GS-ABCD/);
   assert.doesNotMatch(JSON.stringify(requestBody), /private-test-key/);
 });

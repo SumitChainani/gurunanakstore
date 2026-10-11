@@ -66,7 +66,7 @@ test("saves an order and exposes only its public status", async () => {
   createdOrder = await response.json();
   assert.match(createdOrder.orderId, /^[A-Za-z0-9_-]{24}$/);
   assert.match(createdOrder.trackingCode, /^GS-[A-HJ-NP-Z2-9]{16}$/);
-  assert.equal(createdOrder.amountRupees, 809.1);
+  assert.equal(createdOrder.amountRupees, 323.1);
   assert.equal(createdOrder.status, "PENDING");
   assert.equal(createdOrder.checkoutReference, "GS1234567890123AB12CD34");
   assert.equal(new URL(createdOrder.statusUrl).searchParams.get("trackingCode"), createdOrder.trackingCode);
@@ -248,7 +248,7 @@ test("saves COD at full price and lets the owner accept it without marking payme
   assert.equal(response.status, 201);
   const codOrder = await response.json();
   assert.equal(codOrder.paymentMethod, "COD");
-  assert.equal(codOrder.amountRupees, 899);
+  assert.equal(codOrder.amountRupees, 359);
   assert.equal(codOrder.status, "PENDING");
   assert.equal(codOrder.paymentStatus, "COD_PENDING");
 
@@ -256,7 +256,7 @@ test("saves COD at full price and lets the owner accept it without marking payme
   const persistedCOD = persistedOrders.find((order) => order.trackingCode === codOrder.trackingCode);
   assert.ok(persistedCOD);
   assert.equal(persistedCOD.discountRupees, 0);
-  assert.equal(persistedCOD.amountPaise, 89900);
+  assert.equal(persistedCOD.amountPaise, 35900);
   assert.equal(persistedCOD.paymentReference, "");
 
   const login = await send("/api/admin/login", {
