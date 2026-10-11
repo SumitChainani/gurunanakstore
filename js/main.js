@@ -18,7 +18,7 @@ const API_BASE_URL = String(window.GURUNANAK_API_URL || window.GURUNANAK_PHONEPE
 const PHONEPE_API_BASE_URL = String(window.GURUNANAK_PHONEPE_API_URL || API_BASE_URL).replace(/\/+$/, "");
 const STORE_UPI_ID = String(window.GURUNANAK_UPI_ID || "").trim();
 const STORE_UPI_PAYEE_NAME = String(window.GURUNANAK_UPI_PAYEE_NAME || STORE_NAME).trim();
-const MOTION_REVEAL_SELECTOR = ".section-heading, .product-card, .brand-promise, .benefits-section article, .service-strip > *, .reviews-section > div, .about-copy > div, .values-section article, .about-cta, .contact-card, .contact-form, .product-detail-media, .product-detail-content, .product-reviews-header, .product-review-card, .review-form, .cart-item, .order-summary, .checkout-intro, .checkout-form, .payment-result";
+const MOTION_REVEAL_SELECTOR = ".section-heading, .category-row, .product-card, .brand-promise, .benefits-section article, .service-strip > *, .reviews-section > div, .about-copy > div, .values-section article, .about-cta, .contact-card, .contact-form, .product-detail-media, .product-detail-content, .product-reviews-header, .product-review-card, .review-form, .cart-item, .order-summary, .checkout-intro, .checkout-form, .payment-result";
 let motionRevealObserver = null;
 
 function formatPrice(amount) {
@@ -690,7 +690,7 @@ function renderCartPage() {
     '<div class="summary-line"><span>Delivery</span><strong>Confirm on WhatsApp</strong></div>',
     '<div class="summary-total"><span>Items total</span><strong>' + formatPrice(cartTotal()) + '</strong></div>',
     '<p class="summary-note">We’ll confirm stock, fit, delivery availability, and any delivery charge before payment.</p>',
-    '<a class="button button-gold button-wide" href="checkout.html" data-start-checkout>Continue to checkout <span aria-hidden="true">→</span></a></aside></div></section>'
+    '<a class="button button-gold button-wide continue-checkout-button" href="checkout.html" data-start-checkout>Continue to checkout <span aria-hidden="true">→</span></a></aside></div></section>'
   ].join("");
 
   observeMotionTargets(target);
@@ -720,7 +720,27 @@ function renderCartPage() {
     });
   });
   const checkoutLink = target.querySelector("[data-start-checkout]");
-  if (checkoutLink) checkoutLink.addEventListener("click", beginCheckoutFromCart);
+  if (checkoutLink) {
+    let checkoutNavigationPending = false;
+    checkoutLink.addEventListener("click", (event) => {
+      const standardClick = event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
+      if (!standardClick) {
+        beginCheckoutFromCart();
+        return;
+      }
+
+      event.preventDefault();
+      if (checkoutNavigationPending) return;
+      checkoutNavigationPending = true;
+      beginCheckoutFromCart();
+      checkoutLink.setAttribute("aria-disabled", "true");
+      checkoutLink.classList.add("is-vanishing");
+
+      const reducedMotion = typeof window.matchMedia === "function"
+        && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.setTimeout(() => window.location.assign(checkoutLink.href), reducedMotion ? 0 : 360);
+    });
+  }
 }
 
 function renderCheckoutPage() {
