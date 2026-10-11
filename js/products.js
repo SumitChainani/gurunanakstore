@@ -197,9 +197,3 @@ const PRODUCTS = [
 function findProduct(id) {
   return PRODUCTS.find((product) => product.id === Number(id));
 }
-
-// Let the Node.js backend reuse this same catalogue while browsers keep using
-// the existing global PRODUCTS variable.
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = { PRODUCTS, findProduct };
-}
