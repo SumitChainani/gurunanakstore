@@ -1714,6 +1714,34 @@ function initNavigation() {
   }));
 }
 
+// Let the homepage collection CTA softly disappear before opening the shop.
+function initHomeCollectionLink() {
+  const link = document.querySelector("[data-home-collection-link]");
+  if (!link) return;
+
+  link.addEventListener("click", (event) => {
+    const standardClick = event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
+    if (!standardClick) return;
+    if (link.dataset.navigationPending === "true") {
+      event.preventDefault();
+      return;
+    }
+
+    event.preventDefault();
+    link.dataset.navigationPending = "true";
+    link.setAttribute("aria-disabled", "true");
+
+    const prefersReducedMotion = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReducedMotion) {
+      window.location.assign(link.href);
+      return;
+    }
+
+    link.classList.add("collection-vanishing");
+    window.setTimeout(() => window.location.assign(link.href), 380);
+  });
+}
+
 function observeMotionTargets(root) {
   if (!motionRevealObserver || !root || typeof root.querySelectorAll !== "function") return;
   root.querySelectorAll(MOTION_REVEAL_SELECTOR).forEach((element) => {
@@ -1789,6 +1817,7 @@ document.addEventListener("click", (event) => {
 
 document.addEventListener("DOMContentLoaded", () => {
   initNavigation();
+  initHomeCollectionLink();
   initWhatsAppLinks();
   initHomeProducts();
   initShop();

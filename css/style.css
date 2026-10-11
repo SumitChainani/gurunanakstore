@@ -89,6 +89,10 @@ h1, h2, h3, p { margin-top: 0; }
 .button:focus-visible, a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid rgba(200,164,100,.65); outline-offset: 3px; }
 .button-gold { background: var(--gold); color: var(--navy-deep); }
 .button-gold:hover { background: #d7b879; box-shadow: 0 7px 20px rgba(200,164,100,.2); }
+@media (prefers-reduced-motion: no-preference) {
+  .hero-actions [data-home-collection-link].collection-vanishing { pointer-events: none; animation: collection-button-vanish .38s cubic-bezier(.55,0,.75,.2) both; }
+}
+@keyframes collection-button-vanish { 0% { opacity: 1; filter: blur(0); transform: translateY(0) scale(1); } 55% { opacity: .72; filter: blur(1px); transform: translateY(-3px) scale(.97); } 100% { opacity: 0; filter: blur(5px); transform: translateY(-12px) scale(.9); } }
 .button-navy { background: var(--navy); color: var(--white); }
 .button-navy:hover { background: var(--navy-mid); }
 .button-outline { border-color: var(--navy); background: transparent; color: var(--navy); }
@@ -113,6 +117,10 @@ h1, h2, h3, p { margin-top: 0; }
 .hero-stamp { position: absolute; top: 17px; right: 16px; width: 70px; height: 70px; display: grid; align-content: center; justify-items: center; border: 1px solid rgba(231,216,185,.8); border-radius: 50%; color: var(--gold-pale); box-shadow: 0 10px 28px rgba(8,14,22,.22); }
 .hero-stamp > span { font-family: var(--serif); font-size: 21px; line-height: 1; }
 .hero-stamp small { margin-top: 4px; font-size: 6px; font-weight: 700; letter-spacing: .11em; line-height: 1.3; text-align: center; }
+.home-brand-emblem { top: 18px; right: 18px; width: 86px; height: 98px; padding: 1px; overflow: visible; border: 0; border-radius: 0; background: linear-gradient(145deg, var(--gold-pale), var(--gold), #8d6d3e); clip-path: polygon(50% 0, 93% 20%, 85% 70%, 50% 100%, 15% 70%, 7% 20%); filter: drop-shadow(0 10px 20px rgba(0,0,0,.32)); }
+.home-brand-emblem-inner { display: grid; align-content: center; justify-items: center; gap: 5px; width: 100%; height: 100%; background: linear-gradient(150deg, rgba(29,45,62,.98), rgba(8,14,22,.98)); clip-path: polygon(50% 2%, 90% 21%, 82% 68%, 50% 96%, 18% 68%, 10% 21%); }
+.home-brand-monogram { color: var(--gold-pale); font-family: var(--serif); font-size: 29px; line-height: 1; letter-spacing: .04em; text-shadow: 0 0 16px rgba(231,216,185,.24); }
+.home-brand-emblem small { margin: 0; color: var(--gold-pale); font-size: 6px; font-weight: 700; letter-spacing: .13em; line-height: 1.25; }
 .hero-caption { position: absolute; right: 16px; bottom: 13px; left: 16px; display: flex; justify-content: space-between; gap: 12px; color: rgba(255,255,255,.78); font-size: 7px; font-weight: 700; letter-spacing: .14em; }
 
 .category-row { display: grid; grid-template-columns: repeat(2, 1fr); background: var(--white); }
@@ -652,6 +660,7 @@ h1, h2, h3, p { margin-top: 0; }
   .product-detail-image.has-pointer-light img { transform: scale(1.015); }
   .product-card.has-pointer-light .product-image-wrap::after { opacity: .52; }
   .hero-visual:hover::after, .hero-visual:focus-within::after { opacity: 1; animation: cinematic-light-sweep 3.2s cubic-bezier(.3,.1,.4,1) both; }
+  .hero-visual:hover .home-brand-emblem { filter: drop-shadow(0 12px 26px rgba(200,164,100,.4)); }
   .shop-hero-visual:hover .shop-hero-logo-mark { transform: translateY(-2px) scale(1.025); box-shadow: inset 0 0 30px rgba(200,164,100,.13), 0 18px 42px rgba(2,6,12,.38); }
   .shop-hero-visual:hover::after, .shop-hero-visual:focus-within::after { opacity: 1; animation: shop-image-sheen .95s cubic-bezier(.2,.7,.2,1) both; }
 

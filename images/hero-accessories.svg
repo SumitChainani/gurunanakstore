@@ -5,7 +5,26 @@
     <linearGradient id="sky" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#35475b"/><stop offset="1" stop-color="#151f2e"/></linearGradient>
     <linearGradient id="tank" x1="0" x2="1"><stop stop-color="#718096"/><stop offset="1" stop-color="#273446"/></linearGradient>
     <linearGradient id="road" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#263347"/><stop offset="1" stop-color="#101824"/></linearGradient>
+    <linearGradient id="headlight-beam-fill" x1="100%" y1="50%" x2="0%" y2="50%"><stop offset="0" stop-color="#fff0c5" stop-opacity=".78"/><stop offset=".42" stop-color="#f0d8a7" stop-opacity=".3"/><stop offset="1" stop-color="#c8a464" stop-opacity="0"/></linearGradient>
+    <radialGradient id="headlight-glow-fill"><stop offset="0" stop-color="#fff9df" stop-opacity=".95"/><stop offset=".26" stop-color="#ffe39c" stop-opacity=".78"/><stop offset="1" stop-color="#ffc84f" stop-opacity="0"/></radialGradient>
   </defs>
+  <style>
+    @keyframes wheel-roll { to { transform: rotate(360deg); } }
+    @keyframes road-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+    @keyframes led-beam-ignite { 0%, 8% { opacity: 0; } 14%, 25% { opacity: .72; } 32%, 44% { opacity: .04; } 51%, 62% { opacity: .82; } 69%, 80% { opacity: .08; } 91%, 100% { opacity: .34; } }
+    @keyframes led-source-ignite { 0%, 8% { opacity: .12; } 14%, 25% { opacity: 1; } 32%, 44% { opacity: .14; } 51%, 62% { opacity: 1; } 69%, 80% { opacity: .18; } 91%, 100% { opacity: .82; } }
+    #motorcycle { transform-box: view-box; animation: road-bob 1.55s ease-in-out infinite; }
+    #rear-wheel-spokes { transform-box: view-box; transform-origin: 31.3% 73.7%; animation: wheel-roll 3.6s linear infinite; }
+    #front-wheel-spokes { transform-box: view-box; transform-origin: 74.6% 73.7%; animation: wheel-roll 3.6s linear infinite; }
+    #headlight-beam { animation: led-beam-ignite 1.8s ease-out .35s 1 both; }
+    #headlight-glow, #headlight-core { animation: led-source-ignite 1.8s ease-out .35s 1 both; }
+    @media (prefers-reduced-motion: reduce) {
+      #motorcycle, #rear-wheel-spokes, #front-wheel-spokes { animation: none !important; transform: none !important; }
+      #headlight-beam { animation: none !important; opacity: .34 !important; }
+      #headlight-glow { animation: none !important; opacity: .55 !important; }
+      #headlight-core { animation: none !important; opacity: .95 !important; }
+    }
+  </style>
   <rect width="1000" height="760" fill="url(#sky)"/>
   <circle cx="759" cy="170" r="98" fill="#c8a464" opacity=".15"/>
   <path d="M0 434 180 300l136 101 164-211 124 198 109-115 287 170v140H0Z" fill="#202d3d"/>
@@ -13,14 +32,16 @@
   <path d="M0 577q230-67 467-18t533-6v207H0Z" fill="url(#road)"/>
   <path d="M652 563 521 760M675 565 595 760" stroke="#c8a464" stroke-width="5" opacity=".56"/>
   <path d="M0 604q295-58 516 12" fill="none" stroke="#8190a0" stroke-width="2" opacity=".35"/>
-  <ellipse cx="523" cy="639" rx="335" ry="35" fill="#0b111a" opacity=".55"/>
-  <g fill="none" stroke="#0d141e" stroke-width="22"><circle cx="313" cy="560" r="112"/><circle cx="746" cy="560" r="112"/></g>
-  <g fill="none" stroke="#9aa3ac" stroke-width="4" opacity=".75">
-    <circle cx="313" cy="560" r="87"/><circle cx="746" cy="560" r="87"/>
-    <path d="M313 473v174m-87-87h174m-61-61 122 122m-122 0 122-122"/>
-    <path d="M746 473v174m-87-87h174m-61-61 122 122m-122 0 122-122"/>
-  </g>
-  <g stroke="#111a25" stroke-linejoin="round" stroke-linecap="round">
+  <g id="motorcycle">
+    <path id="headlight-beam" d="M402 319Q316 295 224 286L224 382Q315 361 402 343Z" fill="url(#headlight-beam-fill)" opacity=".34"/>
+    <ellipse cx="523" cy="639" rx="335" ry="35" fill="#0b111a" opacity=".55"/>
+    <g fill="none" stroke="#0d141e" stroke-width="22"><circle cx="313" cy="560" r="112"/><circle cx="746" cy="560" r="112"/></g>
+    <g fill="none" stroke="#9aa3ac" stroke-width="4" opacity=".75">
+      <circle cx="313" cy="560" r="87"/><circle cx="746" cy="560" r="87"/>
+      <g id="rear-wheel-spokes"><path d="M313 473v174m-87-87h174m-61-61 122 122m-122 0 122-122"/></g>
+      <g id="front-wheel-spokes"><path d="M746 473v174m-87-87h174m-61-61 122 122m-122 0 122-122"/></g>
+    </g>
+    <g stroke="#111a25" stroke-linejoin="round" stroke-linecap="round">
     <path d="m313 560 166-159 112 159H313l111-99 55 99 170-100 97 100" fill="none" stroke="#c8a464" stroke-width="14"/>
     <path d="M406 394c42-70 138-87 213-43l43 39-32 78-123 27-95-36-35-65Z" fill="url(#tank)" stroke-width="15"/>
     <path d="M440 386c34-48 105-62 158-31l29 22-27 51-82 22-69-27Z" fill="#b0bac5" opacity=".55" stroke-width="4"/>
@@ -32,14 +53,18 @@
     <path d="m402 319-40-22" fill="none" stroke="#c8a464" stroke-width="9"/>
     <path d="M400 308h52v54h-52Z" fill="#c8a464" stroke-width="9"/>
     <path d="M406 317h40v34h-40Z" fill="#324256" stroke="none"/>
+    <circle id="headlight-glow" cx="426" cy="334" r="19" fill="url(#headlight-glow-fill)" opacity=".45"/>
+    <circle id="headlight-core" cx="426" cy="334" r="5.5" fill="#fff7d7" opacity=".95"/>
+    <circle cx="426" cy="334" r="2.4" fill="#ffffff" opacity=".98"/>
     <path d="m572 400 100-48 33 2 4 44-88 42Z" fill="#9a7543" stroke-width="10"/>
     <path d="m585 402 84-39 18 1 2 22-77 37Z" fill="#cfad70" stroke="none"/>
     <path d="M488 350 475 278l34-29 48 12-12 82Z" fill="#121a26" stroke-width="10"/>
     <path d="m493 279 30-15 24 8-10 55-34 5Z" fill="#c8a464" stroke-width="5"/>
     <path d="M488 278h59m-76 4h-35m196 135 14 43" fill="none" stroke="#d6d8d6" stroke-width="7"/>
+    </g>
+    <path d="M313 560a112 112 0 0 1 200-69" fill="none" stroke="#c8a464" stroke-width="2" opacity=".8"/>
+    <path d="M746 560a112 112 0 0 0-189-82" fill="none" stroke="#c8a464" stroke-width="2" opacity=".8"/>
+    <path d="M748 545h25" stroke="#f0d8a7" stroke-width="8" stroke-linecap="round"/>
+    <path d="M294 511h25" stroke="#c8a464" stroke-width="8" stroke-linecap="round"/>
   </g>
-  <path d="M313 560a112 112 0 0 1 200-69" fill="none" stroke="#c8a464" stroke-width="2" opacity=".8"/>
-  <path d="M746 560a112 112 0 0 0-189-82" fill="none" stroke="#c8a464" stroke-width="2" opacity=".8"/>
-  <path d="M748 545h25" stroke="#f0d8a7" stroke-width="8" stroke-linecap="round"/>
-  <path d="M294 511h25" stroke="#c8a464" stroke-width="8" stroke-linecap="round"/>
 </svg>
