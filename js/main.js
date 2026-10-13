@@ -1517,7 +1517,6 @@ function initOrderHistoryPage() {
       if (product) cart[product.id] = (Number(cart[product.id]) || 0) + item.quantity;
     });
     saveCart(cart, true);
-    showToast("Items added to your cart.");
   });
 
   renderAndRefresh();
