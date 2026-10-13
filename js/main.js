@@ -2133,6 +2133,18 @@ function initPointerLighting() {
 }
 
 document.addEventListener("click", (event) => {
+  if (!(event.target instanceof Element)) return;
+
+  // Add a short, optional haptic tap on supported phones without blocking the click.
+  const tappedControl = event.target.closest('button:not(:disabled):not([aria-disabled="true"]), [role="button"]:not([aria-disabled="true"]), a.button:not([aria-disabled="true"])');
+  if (tappedControl && typeof navigator.vibrate === "function") {
+    try {
+      navigator.vibrate(12);
+    } catch (error) {
+      // Some browsers expose the API but do not allow vibration in the current context.
+    }
+  }
+
   const addButton = event.target.closest("[data-add-product]");
   if (addButton) addToCart(addButton.dataset.addProduct, 1, addButton);
 });
