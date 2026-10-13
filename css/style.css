@@ -122,6 +122,12 @@ h1, h2, h3, p { margin-top: 0; }
 .home-brand-monogram { color: var(--gold-pale); font-family: var(--serif); font-size: 29px; line-height: 1; letter-spacing: .04em; text-shadow: 0 0 16px rgba(231,216,185,.24); }
 .home-brand-emblem small { margin: 0; color: var(--gold-pale); font-size: 6px; font-weight: 700; letter-spacing: .13em; line-height: 1.25; }
 .hero-caption { position: absolute; right: 16px; bottom: 13px; left: 16px; display: flex; justify-content: space-between; gap: 12px; color: rgba(255,255,255,.78); font-size: 7px; font-weight: 700; letter-spacing: .14em; }
+.hero-sound-toggle { position: absolute; z-index: 3; bottom: 42px; left: 16px; display: inline-flex; min-height: 44px; align-items: center; gap: 8px; padding: 0 13px; border: 1px solid rgba(231,216,185,.62); border-radius: 999px; background: rgba(8,14,22,.72); color: #f4ead4; box-shadow: 0 8px 24px rgba(4,9,15,.24); backdrop-filter: blur(12px); cursor: pointer; font: 700 8px/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; transition: border-color .22s ease, background .22s ease, box-shadow .22s ease, transform .22s ease; }
+.hero-sound-toggle:hover { transform: translateY(-2px); border-color: var(--gold-pale); background: rgba(8,14,22,.9); box-shadow: 0 12px 28px rgba(4,9,15,.3); }
+.hero-sound-toggle:focus-visible { outline: 2px solid var(--gold-pale); outline-offset: 3px; }
+.hero-sound-toggle svg { width: 16px; height: 16px; flex: 0 0 auto; fill: currentColor; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; }
+.hero-sound-toggle svg .sound-wave { fill: none; transition: opacity .2s ease; }
+.hero-sound-toggle[aria-pressed="false"] svg .sound-wave { opacity: 0; }
 
 .category-row { display: grid; grid-template-columns: repeat(2, 1fr); background: var(--white); }
 .category-row a { min-height: 78px; display: grid; grid-template-columns: 31px 1fr 18px; align-items: center; gap: 7px; padding: 13px 15px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); transition: background .2s ease; }

@@ -1727,6 +1727,9 @@ function initNavigation() {
 function initHomeCollectionLink() {
   const link = document.querySelector("[data-home-collection-link]");
   if (!link) return;
+  const clickSound = new Audio(new URL("audio/collection-button-click.mp3", document.baseURI).href);
+  clickSound.preload = "auto";
+  clickSound.volume = 0.42;
 
   link.addEventListener("click", (event) => {
     const standardClick = event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
@@ -1739,6 +1742,23 @@ function initHomeCollectionLink() {
     event.preventDefault();
     link.dataset.navigationPending = "true";
     link.setAttribute("aria-disabled", "true");
+    try {
+      // Pass a short-lived cue to the shop page so its logo reveal can play once.
+      window.sessionStorage.setItem("gstore-shop-logo-sound-until", String(Date.now() + 10000));
+      // Start loading the small sound during the CTA's existing vanish transition.
+      const preload = document.createElement("link");
+      preload.rel = "preload";
+      preload.as = "audio";
+      preload.type = "audio/mpeg";
+      preload.href = new URL("audio/shop-logo-reveal.mp3", document.baseURI).href;
+      document.head.appendChild(preload);
+    } catch (error) {
+      // Navigation and the CTA click sound still work if session storage is unavailable.
+    }
+    clickSound.currentTime = 0;
+    void clickSound.play().catch(() => {
+      // Navigation still works if sound playback is unavailable or disabled.
+    });
 
     const prefersReducedMotion = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (prefersReducedMotion) {
@@ -1749,6 +1769,299 @@ function initHomeCollectionLink() {
     link.classList.add("collection-vanishing");
     window.setTimeout(() => window.location.assign(link.href), 380);
   });
+}
+
+// Play the supplied reveal sound only when the visitor arrived via the homepage CTA.
+function initShopLogoRevealSound() {
+  const logoMark = document.querySelector(".shop-hero-logo-mark");
+  if (!logoMark) return;
+
+  let cueExpiresAt = 0;
+  try {
+    cueExpiresAt = Number(window.sessionStorage.getItem("gstore-shop-logo-sound-until")) || 0;
+    window.sessionStorage.removeItem("gstore-shop-logo-sound-until");
+  } catch (error) {
+    return;
+  }
+  if (Date.now() > cueExpiresAt) return;
+
+  const revealSound = new Audio(new URL("audio/shop-logo-reveal.mp3", document.baseURI).href);
+  revealSound.preload = "auto";
+  revealSound.volume = 0.58;
+  revealSound.load();
+  let played = false;
+  let revealAnimationStarted = false;
+  let waitingForGesture = false;
+
+  function removeGestureFallback() {
+    window.removeEventListener("pointerdown", retryAfterGesture, true);
+    window.removeEventListener("keydown", retryAfterGesture, true);
+    waitingForGesture = false;
+  }
+
+  function playRevealSound() {
+    if (played) return;
+    played = true;
+    revealSound.currentTime = 0;
+    const playback = revealSound.play();
+    if (playback && typeof playback.catch === "function") {
+      playback.catch(() => {
+        played = false;
+        if (waitingForGesture) return;
+        waitingForGesture = true;
+        window.addEventListener("pointerdown", retryAfterGesture, { once: true, capture: true });
+        window.addEventListener("keydown", retryAfterGesture, { once: true, capture: true });
+      });
+    }
+  }
+
+  function retryAfterGesture() {
+    removeGestureFallback();
+    playRevealSound();
+  }
+
+  const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduceMotion) {
+    window.setTimeout(playRevealSound, 80);
+    return;
+  }
+
+  logoMark.addEventListener("animationstart", (event) => {
+    if (event.animationName !== "shop-logo-mark-enter") return;
+    revealAnimationStarted = true;
+    playRevealSound();
+  });
+
+  // Fall back if the animation event is unavailable (for example, in an older browser).
+  window.setTimeout(() => {
+    if (!revealAnimationStarted) playRevealSound();
+  }, 1300);
+}
+
+// Try the light and engine sounds on entry, with a visible control for visitors.
+function initHeadlightAudio() {
+  const image = document.querySelector(".hero-visual > img");
+  if (!image) return;
+
+  const reducedMotion = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)");
+  const autoplayAllowed = !(reducedMotion && reducedMotion.matches);
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  const engineAudio = new Audio(new URL("audio/motorcycle-engine-rev.mp3", document.baseURI).href);
+  engineAudio.preload = "auto";
+  engineAudio.volume = 0.78;
+  const soundButton = document.querySelector("[data-home-sound-toggle]");
+  const soundLabel = soundButton && soundButton.querySelector("[data-sound-label]");
+  const soundPreferenceKey = "gurunanakstore-engine-sound-preference";
+  const soundPlayedKey = "gurunanakstore-engine-sound-played";
+  let savedSoundPreference = null;
+  let hasPlayedBefore = false;
+  try {
+    savedSoundPreference = window.localStorage.getItem(soundPreferenceKey);
+    hasPlayedBefore = window.localStorage.getItem(soundPlayedKey) === "yes";
+  } catch (error) {
+    // Storage can be unavailable in private or restricted browsing modes.
+  }
+  const shouldAutoStart = autoplayAllowed && (savedSoundPreference === "on" || (savedSoundPreference !== "off" && !hasPlayedBefore));
+
+  let audioContext = null;
+  let soundStarted = false;
+  let audioStarting = false;
+  let waitingForGesture = false;
+  let engineNeedsGesture = false;
+  let autoplayBlocked = false;
+  let soundEnabled = autoplayAllowed && (shouldAutoStart || savedSoundPreference === "on");
+  let engineTimer = null;
+
+  function updateSoundButton() {
+    if (!soundButton) return;
+    soundButton.setAttribute("aria-pressed", String(soundEnabled));
+    soundButton.setAttribute("aria-label", soundEnabled ? "Turn motorcycle sound off" : "Turn motorcycle sound on");
+    if (soundLabel) {
+      soundLabel.textContent = soundEnabled ? "Sound on" : (autoplayBlocked ? "Enable sound" : "Sound off");
+    }
+  }
+
+  function playSoftRelayClick(start) {
+    if (!soundEnabled || !audioContext || audioContext.state !== "running") return;
+    const oscillator = audioContext.createOscillator();
+    const volume = audioContext.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(1180, start);
+    oscillator.frequency.exponentialRampToValueAtTime(620, start + 0.035);
+    volume.gain.setValueAtTime(0.0001, start);
+    volume.gain.exponentialRampToValueAtTime(0.035, start + 0.004);
+    volume.gain.exponentialRampToValueAtTime(0.0001, start + 0.06);
+    oscillator.connect(volume);
+    volume.connect(audioContext.destination);
+    oscillator.start(start);
+    oscillator.stop(start + 0.065);
+  }
+
+  function playEngineStart() {
+    if (!soundEnabled) return;
+    try {
+      engineAudio.currentTime = 0;
+      const playback = engineAudio.play();
+      if (playback && typeof playback.then === "function") {
+        playback.then(() => {
+          engineNeedsGesture = false;
+          autoplayBlocked = false;
+          try {
+            window.localStorage.setItem(soundPlayedKey, "yes");
+          } catch (error) {
+            // Keep playback working even when the browser blocks storage.
+          }
+          updateSoundButton();
+        }).catch(() => {
+          engineNeedsGesture = true;
+          autoplayBlocked = true;
+          soundEnabled = false;
+          engineAudio.muted = true;
+          updateSoundButton();
+          waitForGesture();
+        });
+      }
+    } catch (error) {
+      engineNeedsGesture = true;
+      autoplayBlocked = true;
+      soundEnabled = false;
+      engineAudio.muted = true;
+      updateSoundButton();
+      waitForGesture();
+    }
+  }
+
+  function replayBlinkWithSound() {
+    const blinkImageUrl = new URL(image.getAttribute("src"), document.baseURI);
+    blinkImageUrl.searchParams.set("blink", String(Date.now()));
+
+    image.addEventListener("load", () => {
+      if (document.hidden) return;
+      // The SVG's first two bright pulses begin about 0.6s and 1.27s after it loads.
+      if (audioContext && audioContext.state === "running") {
+        window.setTimeout(() => {
+          if (!document.hidden && audioContext.state === "running") playSoftRelayClick(audioContext.currentTime);
+        }, 600);
+        window.setTimeout(() => {
+          if (!document.hidden && audioContext.state === "running") playSoftRelayClick(audioContext.currentTime);
+        }, 1270);
+      }
+      if (soundEnabled) {
+        engineTimer = window.setTimeout(() => {
+          engineTimer = null;
+          if (!document.hidden) playEngineStart();
+        }, 1900);
+      }
+    }, { once: true });
+    image.src = blinkImageUrl.href;
+  }
+
+  function removeGestureListeners() {
+    window.removeEventListener("pointerdown", startOnGesture, true);
+    window.removeEventListener("keydown", startOnGesture, true);
+    waitingForGesture = false;
+  }
+
+  function startOnGesture(event) {
+    if (soundButton && event.target instanceof Element && soundButton.contains(event.target)) return;
+    removeGestureListeners();
+    if (!soundEnabled) {
+      soundEnabled = true;
+      engineAudio.muted = false;
+      autoplayBlocked = false;
+      updateSoundButton();
+    }
+    if (engineNeedsGesture) {
+      engineNeedsGesture = false;
+      playEngineStart();
+    }
+    // Resume from inside the trusted gesture in browsers that block autoplay.
+    if (audioContext && audioContext.state !== "running") {
+      void audioContext.resume().catch(() => {});
+    }
+    void startAudio();
+  }
+
+  function waitForGesture() {
+    if (waitingForGesture || (soundStarted && !engineNeedsGesture && !autoplayBlocked)) return;
+    waitingForGesture = true;
+    window.addEventListener("pointerdown", startOnGesture, { once: true, capture: true });
+    window.addEventListener("keydown", startOnGesture, { once: true, capture: true });
+  }
+
+  async function startAudio() {
+    if (soundStarted || audioStarting) return;
+    audioStarting = true;
+    try {
+      if (AudioContextClass) {
+        audioContext = audioContext || new AudioContextClass();
+        if (audioContext.state !== "running") await audioContext.resume();
+        if (audioContext.state !== "running") {
+          soundEnabled = false;
+          autoplayBlocked = true;
+          engineAudio.muted = true;
+          updateSoundButton();
+          waitForGesture();
+          return;
+        }
+      }
+      soundStarted = true;
+      removeGestureListeners();
+      replayBlinkWithSound();
+    } catch (error) {
+      soundEnabled = false;
+      autoplayBlocked = true;
+      engineAudio.muted = true;
+      updateSoundButton();
+      waitForGesture();
+    } finally {
+      audioStarting = false;
+    }
+  }
+
+  if (soundButton) {
+    soundButton.addEventListener("click", () => {
+      removeGestureListeners();
+      soundEnabled = !soundEnabled;
+      engineAudio.muted = !soundEnabled;
+      autoplayBlocked = false;
+      try {
+        window.localStorage.setItem(soundPreferenceKey, soundEnabled ? "on" : "off");
+      } catch (error) {
+        // The sound control remains usable without persistent preferences.
+      }
+      updateSoundButton();
+
+      if (!soundEnabled) {
+        engineAudio.pause();
+        engineAudio.currentTime = 0;
+        engineNeedsGesture = false;
+        if (engineTimer !== null) window.clearTimeout(engineTimer);
+        engineTimer = null;
+        removeGestureListeners();
+        return;
+      }
+
+      if (audioContext && audioContext.state !== "running") {
+        void audioContext.resume().catch(() => {});
+      }
+      if (soundStarted) {
+        if (engineTimer !== null) window.clearTimeout(engineTimer);
+        engineTimer = null;
+        playEngineStart();
+      } else {
+        void startAudio();
+      }
+    });
+  }
+
+  updateSoundButton();
+
+  // Honor reduced-motion preferences by keeping sound opt-in for those visitors.
+  if (shouldAutoStart) {
+    waitForGesture();
+    void startAudio();
+  }
 }
 
 function observeMotionTargets(root) {
@@ -1827,6 +2140,8 @@ document.addEventListener("click", (event) => {
 document.addEventListener("DOMContentLoaded", () => {
   initNavigation();
   initHomeCollectionLink();
+  initShopLogoRevealSound();
+  initHeadlightAudio();
   initWhatsAppLinks();
   initHomeProducts();
   initShop();
