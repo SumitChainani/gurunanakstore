@@ -520,6 +520,42 @@ function productGalleryImages(product) {
   return [{ src: product.image, alt: product.alt }];
 }
 
+function switchProductGalleryImage(mainImage, selectedImage) {
+  if (!mainImage || !selectedImage || !selectedImage.src) return;
+
+  const nextSrc = String(selectedImage.src);
+  if (mainImage.pendingGalleryImageSrc === nextSrc
+      || (!mainImage.pendingGalleryImageSrc && mainImage.getAttribute("src") === nextSrc)) return;
+  window.clearTimeout(mainImage.gallerySwapTimer);
+  window.clearTimeout(mainImage.galleryAnimationTimer);
+
+  mainImage.pendingGalleryImageSrc = nextSrc;
+  const prefersReducedMotion = typeof window.matchMedia === "function"
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (prefersReducedMotion) {
+    mainImage.src = nextSrc;
+    mainImage.alt = selectedImage.alt || "";
+    mainImage.pendingGalleryImageSrc = "";
+    mainImage.classList.remove("gallery-photo-out", "gallery-photo-in");
+    return;
+  }
+
+  mainImage.classList.remove("gallery-photo-in");
+  mainImage.classList.add("gallery-photo-out");
+  mainImage.gallerySwapTimer = window.setTimeout(() => {
+    if (mainImage.pendingGalleryImageSrc !== nextSrc) return;
+    mainImage.src = nextSrc;
+    mainImage.alt = selectedImage.alt || "";
+    mainImage.classList.remove("gallery-photo-out");
+    void mainImage.offsetWidth;
+    mainImage.classList.add("gallery-photo-in");
+    mainImage.pendingGalleryImageSrc = "";
+    mainImage.galleryAnimationTimer = window.setTimeout(() => {
+      mainImage.classList.remove("gallery-photo-in");
+    }, 450);
+  }, 130);
+}
+
 function productCard(product) {
   const productName = escapeHTML(product.name);
   const cardImage = productGalleryImages(product)[0];
@@ -768,11 +804,15 @@ function initProductPage() {
     ].join("")).join(""),
     '</div>'
   ].join("") : '';
+  const galleryArrows = galleryImages.length > 1 ? [
+    '<button class="product-gallery-arrow product-gallery-arrow-prev" type="button" data-gallery-step="-1" aria-label="Show previous photo"><span aria-hidden="true">‹</span></button>',
+    '<button class="product-gallery-arrow product-gallery-arrow-next" type="button" data-gallery-step="1" aria-label="Show next photo"><span aria-hidden="true">›</span></button>'
+  ].join("") : '';
 
   target.innerHTML = [
     '<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="index.html">Home</a><span aria-hidden="true">/</span><a href="shop.html">Shop</a><span aria-hidden="true">/</span><span>' + escapeHTML(product.name) + '</span></nav>',
     '<section class="product-detail">',
-    '<div class="product-detail-media"><div class="product-detail-image"><img data-product-main-image src="' + escapeHTML(firstGalleryImage.src) + '" alt="' + escapeHTML(firstGalleryImage.alt) + '" /></div>' + galleryThumbnails + '</div>',
+    '<div class="product-detail-media"><div class="product-detail-image"><img data-product-main-image data-gallery-index="0" src="' + escapeHTML(firstGalleryImage.src) + '" alt="' + escapeHTML(firstGalleryImage.alt) + '" />' + galleryArrows + '</div>' + galleryThumbnails + '</div>',
     '<div class="product-detail-content"><p class="eyebrow eyebrow-dark">' + escapeHTML(product.category) + ' <span aria-hidden="true">·</span> ' + escapeHTML(product.badge) + '</p>',
     '<h1>' + escapeHTML(product.name) + '</h1><p class="detail-price">' + formatPrice(product.price) + '</p>',
     '<p class="detail-description">' + escapeHTML(product.description) + '</p>',
@@ -791,17 +831,27 @@ function initProductPage() {
   const relatedProducts = PRODUCTS.filter((item) => item.id !== product.id).slice(0, 4);
   target.querySelector("[data-related-products]").innerHTML = relatedProducts.map(productCard).join("");
   observeMotionTargets(target);
+  const mainImage = target.querySelector("[data-product-main-image]");
+  function showGalleryImage(index) {
+    const selectedIndex = (index + galleryImages.length) % galleryImages.length;
+    const selectedImage = galleryImages[selectedIndex];
+    switchProductGalleryImage(mainImage, selectedImage);
+    mainImage.dataset.galleryIndex = String(selectedIndex);
+    target.querySelectorAll("[data-gallery-image]").forEach((thumbnail) => {
+      const isSelected = Number(thumbnail.dataset.galleryImage) === selectedIndex;
+      thumbnail.classList.toggle("is-active", isSelected);
+      thumbnail.setAttribute("aria-pressed", String(isSelected));
+    });
+  }
   target.querySelectorAll("[data-gallery-image]").forEach((button) => {
     button.addEventListener("click", () => {
-      const selectedImage = galleryImages[Number(button.dataset.galleryImage)];
-      const mainImage = target.querySelector("[data-product-main-image]");
-      mainImage.src = selectedImage.src;
-      mainImage.alt = selectedImage.alt;
-      target.querySelectorAll("[data-gallery-image]").forEach((thumbnail) => {
-        const isSelected = thumbnail === button;
-        thumbnail.classList.toggle("is-active", isSelected);
-        thumbnail.setAttribute("aria-pressed", String(isSelected));
-      });
+      showGalleryImage(Number(button.dataset.galleryImage));
+    });
+  });
+  target.querySelectorAll("[data-gallery-step]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const currentIndex = Number(mainImage.dataset.galleryIndex) || 0;
+      showGalleryImage(currentIndex + Number(button.dataset.galleryStep));
     });
   });
   target.querySelectorAll("[data-detail-quantity]").forEach((button) => {
@@ -2238,7 +2288,7 @@ document.addEventListener("click", (event) => {
     }
   } else if (tappedControl) {
     const hasDedicatedSound = tappedControl.matches("[data-home-collection-link]");
-    const muteClickSound = tappedControl.matches("[data-menu-button], [data-support-chat-open], [data-gallery-image]");
+    const muteClickSound = tappedControl.matches("[data-menu-button], [data-support-chat-open], [data-gallery-image], [data-gallery-step]");
     if (!hasDedicatedSound && !muteClickSound) playButtonClickSound();
     if (!hasDedicatedSound && typeof navigator.vibrate === "function") {
       try {
