@@ -21,6 +21,84 @@ const STORE_UPI_ID = String(window.GURUNANAK_UPI_ID || "").trim();
 const STORE_UPI_PAYEE_NAME = String(window.GURUNANAK_UPI_PAYEE_NAME || STORE_NAME).trim();
 const MOTION_REVEAL_SELECTOR = ".section-heading, .category-row, .product-card, .shop-tools, .catalogue-note, .brand-promise, .benefits-section article, .service-strip > *, .reviews-section > div, .about-copy > div, .values-section article, .about-cta, .contact-card, .contact-form, .product-detail-media, .product-detail-content, .product-reviews-header, .product-review-card, .review-form, .cart-item, .order-summary, .checkout-intro, .checkout-form, .payment-result";
 let motionRevealObserver = null;
+let buttonClickSound = null;
+let paymentMethodAudioContext = null;
+let activePaymentMethodTones = [];
+
+function initButtonClickSound() {
+  buttonClickSound = new Audio(new URL("audio/collection-button-click.mp3", document.baseURI).href);
+  buttonClickSound.preload = "auto";
+  buttonClickSound.volume = 0.24;
+  buttonClickSound.load();
+}
+
+function playButtonClickSound() {
+  if (!buttonClickSound) return;
+  try {
+    buttonClickSound.pause();
+    buttonClickSound.currentTime = 0;
+    const playback = buttonClickSound.play();
+    if (playback && typeof playback.catch === "function") playback.catch(() => {});
+  } catch (error) {
+    // Audio is optional; the control's normal action must always continue.
+  }
+}
+
+// Give each payment choice a distinct, quiet tone using the browser's audio engine.
+function playPaymentMethodSelectionSound(paymentMethod) {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return;
+
+  try {
+    paymentMethodAudioContext = paymentMethodAudioContext || new AudioContextClass();
+    const context = paymentMethodAudioContext;
+    const playTone = () => {
+      const now = context.currentTime;
+      activePaymentMethodTones.forEach((tone) => {
+        try { tone.stop(now + 0.01); } catch (error) {}
+      });
+      activePaymentMethodTones = [];
+
+      const addTone = (frequency, endFrequency, offset, duration, type, volume) => {
+        const oscillator = context.createOscillator();
+        const envelope = context.createGain();
+        const startAt = now + offset;
+        oscillator.type = type;
+        oscillator.frequency.setValueAtTime(frequency, startAt);
+        if (endFrequency) oscillator.frequency.exponentialRampToValueAtTime(endFrequency, startAt + duration);
+        envelope.gain.setValueAtTime(0.0001, startAt);
+        envelope.gain.exponentialRampToValueAtTime(volume, startAt + 0.012);
+        envelope.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
+        oscillator.connect(envelope);
+        envelope.connect(context.destination);
+        oscillator.start(startAt);
+        oscillator.stop(startAt + duration + 0.015);
+        activePaymentMethodTones.push(oscillator);
+        oscillator.addEventListener("ended", () => {
+          activePaymentMethodTones = activePaymentMethodTones.filter((tone) => tone !== oscillator);
+        }, { once: true });
+      };
+
+      if (paymentMethod === "PHONEPE_UPI") {
+        // A light, rising two-note chime for the digital payment option.
+        addTone(659, 740, 0, 0.15, "sine", 0.024);
+        addTone(880, 988, 0.075, 0.17, "sine", 0.019);
+      } else {
+        // A softer, lower settling tone for cash on delivery.
+        addTone(392, 330, 0, 0.2, "triangle", 0.023);
+        addTone(294, 262, 0.055, 0.16, "sine", 0.012);
+      }
+    };
+
+    if (context.state !== "running") {
+      void context.resume().then(playTone).catch(() => {});
+    } else {
+      playTone();
+    }
+  } catch (error) {
+    // Payment selection remains fully usable when Web Audio is unavailable.
+  }
+}
 
 function formatPrice(amount) {
   return "₹" + Number(amount).toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -826,7 +904,10 @@ function renderCheckoutPage() {
   target.querySelector("[data-checkout-form]").addEventListener("submit", submitOrder);
   const checkoutForm = target.querySelector("[data-checkout-form]");
   checkoutForm.querySelectorAll('input[name="paymentMethod"]').forEach((input) => {
-    input.addEventListener("change", () => updateCheckoutPaymentMethod(checkoutForm, paymentTotal, true));
+    input.addEventListener("change", () => {
+      playPaymentMethodSelectionSound(input.value);
+      updateCheckoutPaymentMethod(checkoutForm, paymentTotal, true);
+    });
   });
   updateCheckoutPaymentMethod(checkoutForm, paymentTotal);
 }
@@ -2135,21 +2216,39 @@ function initPointerLighting() {
 document.addEventListener("click", (event) => {
   if (!(event.target instanceof Element)) return;
 
-  // Add a short, optional haptic tap on supported phones without blocking the click.
-  const tappedControl = event.target.closest('button:not(:disabled):not([aria-disabled="true"]), [role="button"]:not([aria-disabled="true"]), a.button:not([aria-disabled="true"])');
-  if (tappedControl && typeof navigator.vibrate === "function") {
-    try {
-      navigator.vibrate(12);
-    } catch (error) {
-      // Some browsers expose the API but do not allow vibration in the current context.
-    }
-  }
-
   const addButton = event.target.closest("[data-add-product]");
   if (addButton) addToCart(addButton.dataset.addProduct, 1, addButton);
 });
 
+// Capture before a button handler disables itself or navigates away.
+document.addEventListener("click", (event) => {
+  if (!(event.target instanceof Element)) return;
+  const tappedControl = event.target.closest('button:not(:disabled):not([aria-disabled="true"]), [role="button"]:not([aria-disabled="true"]), a.button:not([aria-disabled="true"])');
+  const quantityButton = event.target.closest("[data-cart-change], [data-detail-quantity]");
+  if (quantityButton) {
+    const change = quantityButton.dataset.change || quantityButton.dataset.detailQuantity;
+    // A soft double pulse for plus and one gentle pulse for minus; supported phones only.
+    if (typeof navigator.vibrate === "function") {
+      try {
+        navigator.vibrate(Number(change) > 0 ? [20, 26, 14] : 18);
+      } catch (error) {
+        // Quantity controls still work when vibration is unavailable or blocked.
+      }
+    }
+  } else if (tappedControl && !tappedControl.matches("[data-home-collection-link]")) {
+    playButtonClickSound();
+    if (typeof navigator.vibrate === "function") {
+      try {
+        navigator.vibrate(12);
+      } catch (error) {
+        // The button action remains unaffected if vibration is unavailable.
+      }
+    }
+  }
+}, true);
+
 document.addEventListener("DOMContentLoaded", () => {
+  initButtonClickSound();
   initNavigation();
   initHomeCollectionLink();
   initShopLogoRevealSound();

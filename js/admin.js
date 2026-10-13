@@ -10,6 +10,10 @@ const dashboardNotice = document.querySelector("[data-admin-notice]");
 const ordersContainer = document.querySelector("[data-admin-orders]");
 let ownerSessionToken = "";
 let orderRefreshTimer = 0;
+const adminButtonClickSound = new Audio(new URL("audio/collection-button-click.mp3", document.baseURI).href);
+adminButtonClickSound.preload = "auto";
+adminButtonClickSound.volume = 0.24;
+adminButtonClickSound.load();
 
 function escapeAdminHTML(value) {
   return String(value).replace(/[&<>"']/g, (character) => ({
@@ -230,3 +234,19 @@ if (window.location.protocol === "file:") {
 
 document.querySelector("[data-admin-refresh]").addEventListener("click", loadOrders);
 document.querySelector("[data-admin-logout]").addEventListener("click", () => showLogin("You are signed out."));
+
+// Keep the same quiet tap sound on owner controls; playback never blocks an action.
+document.addEventListener("click", (event) => {
+  if (!(event.target instanceof Element)) return;
+  const button = event.target.closest('button:not(:disabled):not([aria-disabled="true"])');
+  if (!button) return;
+
+  try {
+    adminButtonClickSound.pause();
+    adminButtonClickSound.currentTime = 0;
+    const playback = adminButtonClickSound.play();
+    if (playback && typeof playback.catch === "function") playback.catch(() => {});
+  } catch (error) {
+    // Audio is optional; admin actions must continue normally.
+  }
+}, true);
