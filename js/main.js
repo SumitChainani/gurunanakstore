@@ -712,7 +712,6 @@ function initShop() {
     "All": { accent: "#b38b4d", soft: "rgba(179,139,77,.14)", ink: "#72572f" },
     "Rider gear": { accent: "#35776d", soft: "rgba(53,119,109,.13)", ink: "#20554d" },
     "Protection": { accent: "#4c70a5", soft: "rgba(76,112,165,.13)", ink: "#395880" },
-    "Travel": { accent: "#ad743b", soft: "rgba(173,116,59,.14)", ink: "#805629" },
     "Electronics": { accent: "#7761a2", soft: "rgba(119,97,162,.13)", ink: "#59447f" },
     "Security": { accent: "#48795b", soft: "rgba(72,121,91,.13)", ink: "#355d43" }
   };
