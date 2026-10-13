@@ -1919,7 +1919,7 @@ function initShopLogoRevealSound() {
   }, 1300);
 }
 
-// Try the light and engine sounds on entry, with a visible control for visitors.
+// Play only the soft headlight blink cue; engine-start audio is intentionally disabled.
 function initHeadlightAudio() {
   const image = document.querySelector(".hero-visual > img");
   if (!image) return;
@@ -1927,18 +1927,17 @@ function initHeadlightAudio() {
   const reducedMotion = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)");
   const autoplayAllowed = !(reducedMotion && reducedMotion.matches);
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  const engineAudio = new Audio(new URL("audio/motorcycle-engine-rev.mp3", document.baseURI).href);
-  engineAudio.preload = "auto";
-  engineAudio.volume = 0.78;
   const soundButton = document.querySelector("[data-home-sound-toggle]");
   const soundLabel = soundButton && soundButton.querySelector("[data-sound-label]");
-  const soundPreferenceKey = "gurunanakstore-engine-sound-preference";
-  const soundPlayedKey = "gurunanakstore-engine-sound-played";
+  const soundPreferenceKey = "gurunanakstore-headlight-sound-preference";
+  const legacySoundPreferenceKey = "gurunanakstore-engine-sound-preference";
+  const soundPlayedKey = "gurunanakstore-headlight-sound-played";
+  const legacySoundPlayedKey = "gurunanakstore-engine-sound-played";
   let savedSoundPreference = null;
   let hasPlayedBefore = false;
   try {
-    savedSoundPreference = window.localStorage.getItem(soundPreferenceKey);
-    hasPlayedBefore = window.localStorage.getItem(soundPlayedKey) === "yes";
+    savedSoundPreference = window.localStorage.getItem(soundPreferenceKey) || window.localStorage.getItem(legacySoundPreferenceKey);
+    hasPlayedBefore = window.localStorage.getItem(soundPlayedKey) === "yes" || window.localStorage.getItem(legacySoundPlayedKey) === "yes";
   } catch (error) {
     // Storage can be unavailable in private or restricted browsing modes.
   }
@@ -1948,17 +1947,15 @@ function initHeadlightAudio() {
   let soundStarted = false;
   let audioStarting = false;
   let waitingForGesture = false;
-  let engineNeedsGesture = false;
   let autoplayBlocked = false;
   let soundEnabled = autoplayAllowed && (shouldAutoStart || savedSoundPreference === "on");
-  let engineTimer = null;
 
   function updateSoundButton() {
     if (!soundButton) return;
     soundButton.setAttribute("aria-pressed", String(soundEnabled));
-    soundButton.setAttribute("aria-label", soundEnabled ? "Turn motorcycle sound off" : "Turn motorcycle sound on");
+    soundButton.setAttribute("aria-label", soundEnabled ? "Turn headlight sound off" : "Turn headlight sound on");
     if (soundLabel) {
-      soundLabel.textContent = soundEnabled ? "Sound on" : (autoplayBlocked ? "Enable sound" : "Sound off");
+      soundLabel.textContent = soundEnabled ? "Light sound on" : (autoplayBlocked ? "Enable light sound" : "Light sound off");
     }
   }
 
@@ -1978,40 +1975,6 @@ function initHeadlightAudio() {
     oscillator.stop(start + 0.065);
   }
 
-  function playEngineStart() {
-    if (!soundEnabled) return;
-    try {
-      engineAudio.currentTime = 0;
-      const playback = engineAudio.play();
-      if (playback && typeof playback.then === "function") {
-        playback.then(() => {
-          engineNeedsGesture = false;
-          autoplayBlocked = false;
-          try {
-            window.localStorage.setItem(soundPlayedKey, "yes");
-          } catch (error) {
-            // Keep playback working even when the browser blocks storage.
-          }
-          updateSoundButton();
-        }).catch(() => {
-          engineNeedsGesture = true;
-          autoplayBlocked = true;
-          soundEnabled = false;
-          engineAudio.muted = true;
-          updateSoundButton();
-          waitForGesture();
-        });
-      }
-    } catch (error) {
-      engineNeedsGesture = true;
-      autoplayBlocked = true;
-      soundEnabled = false;
-      engineAudio.muted = true;
-      updateSoundButton();
-      waitForGesture();
-    }
-  }
-
   function replayBlinkWithSound() {
     const blinkImageUrl = new URL(image.getAttribute("src"), document.baseURI);
     blinkImageUrl.searchParams.set("blink", String(Date.now()));
@@ -2027,11 +1990,10 @@ function initHeadlightAudio() {
           if (!document.hidden && audioContext.state === "running") playSoftRelayClick(audioContext.currentTime);
         }, 1270);
       }
-      if (soundEnabled) {
-        engineTimer = window.setTimeout(() => {
-          engineTimer = null;
-          if (!document.hidden) playEngineStart();
-        }, 1900);
+      try {
+        window.localStorage.setItem(soundPlayedKey, "yes");
+      } catch (error) {
+        // The headlight animation remains usable when storage is unavailable.
       }
     }, { once: true });
     image.src = blinkImageUrl.href;
@@ -2048,13 +2010,8 @@ function initHeadlightAudio() {
     removeGestureListeners();
     if (!soundEnabled) {
       soundEnabled = true;
-      engineAudio.muted = false;
       autoplayBlocked = false;
       updateSoundButton();
-    }
-    if (engineNeedsGesture) {
-      engineNeedsGesture = false;
-      playEngineStart();
     }
     // Resume from inside the trusted gesture in browsers that block autoplay.
     if (audioContext && audioContext.state !== "running") {
@@ -2064,14 +2021,18 @@ function initHeadlightAudio() {
   }
 
   function waitForGesture() {
-    if (waitingForGesture || (soundStarted && !engineNeedsGesture && !autoplayBlocked)) return;
+    if (waitingForGesture || (soundStarted && !autoplayBlocked)) return;
     waitingForGesture = true;
     window.addEventListener("pointerdown", startOnGesture, { once: true, capture: true });
     window.addEventListener("keydown", startOnGesture, { once: true, capture: true });
   }
 
   async function startAudio() {
-    if (soundStarted || audioStarting) return;
+    if (audioStarting) return;
+    if (soundStarted && (!audioContext || audioContext.state === "running")) {
+      replayBlinkWithSound();
+      return;
+    }
     audioStarting = true;
     try {
       if (AudioContextClass) {
@@ -2080,7 +2041,6 @@ function initHeadlightAudio() {
         if (audioContext.state !== "running") {
           soundEnabled = false;
           autoplayBlocked = true;
-          engineAudio.muted = true;
           updateSoundButton();
           waitForGesture();
           return;
@@ -2092,7 +2052,6 @@ function initHeadlightAudio() {
     } catch (error) {
       soundEnabled = false;
       autoplayBlocked = true;
-      engineAudio.muted = true;
       updateSoundButton();
       waitForGesture();
     } finally {
@@ -2104,7 +2063,6 @@ function initHeadlightAudio() {
     soundButton.addEventListener("click", () => {
       removeGestureListeners();
       soundEnabled = !soundEnabled;
-      engineAudio.muted = !soundEnabled;
       autoplayBlocked = false;
       try {
         window.localStorage.setItem(soundPreferenceKey, soundEnabled ? "on" : "off");
@@ -2114,11 +2072,6 @@ function initHeadlightAudio() {
       updateSoundButton();
 
       if (!soundEnabled) {
-        engineAudio.pause();
-        engineAudio.currentTime = 0;
-        engineNeedsGesture = false;
-        if (engineTimer !== null) window.clearTimeout(engineTimer);
-        engineTimer = null;
         removeGestureListeners();
         return;
       }
@@ -2127,9 +2080,7 @@ function initHeadlightAudio() {
         void audioContext.resume().catch(() => {});
       }
       if (soundStarted) {
-        if (engineTimer !== null) window.clearTimeout(engineTimer);
-        engineTimer = null;
-        playEngineStart();
+        replayBlinkWithSound();
       } else {
         void startAudio();
       }
@@ -2235,9 +2186,11 @@ document.addEventListener("click", (event) => {
         // Quantity controls still work when vibration is unavailable or blocked.
       }
     }
-  } else if (tappedControl && !tappedControl.matches("[data-home-collection-link]")) {
-    playButtonClickSound();
-    if (typeof navigator.vibrate === "function") {
+  } else if (tappedControl) {
+    const hasDedicatedSound = tappedControl.matches("[data-home-collection-link]");
+    const muteClickSound = tappedControl.matches("[data-menu-button], [data-support-chat-open], [data-gallery-image]");
+    if (!hasDedicatedSound && !muteClickSound) playButtonClickSound();
+    if (!hasDedicatedSound && typeof navigator.vibrate === "function") {
       try {
         navigator.vibrate(12);
       } catch (error) {
