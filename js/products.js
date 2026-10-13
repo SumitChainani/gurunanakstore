@@ -36,15 +36,29 @@ const PRODUCTS = [
   },
   {
     id: 2,
-    name: "Handlebar Phone Mount",
+    name: "H.J.G Premium LED Turn Signal Indicators – Stylish Motorcycle Blinker Lights Featuring Bright Illumination, Durable Construction, Modern Design, and Easy Installation.",
     category: "Electronics",
-    price: 799,
-    badge: "Useful upgrade",
-    image: "images/phone-mount.svg",
-    alt: "Illustration of a phone held in a motorcycle handlebar mount",
-    shortDescription: "Keep your phone visible while parked or on a route.",
-    description: "A handlebar-mounted phone holder for riders who want a visible screen position. Check your handlebar measurements and mounting details with us before ordering.",
-    fitment: "Please confirm handlebar compatibility"
+    price: 299,
+    badge: "LED indicators",
+    image: "images/hjg-turn-signal-front.jpg",
+    alt: "Front product view of a pair of H.J.G LED motorcycle turn signal indicators",
+    gallery: [
+      {
+        src: "images/hjg-turn-signal-front.jpg",
+        alt: "Front product view of a pair of H.J.G LED motorcycle turn signal indicators"
+      },
+      {
+        src: "images/hjg-turn-signal-details.jpg",
+        alt: "H.J.G LED indicator lights with product feature details"
+      },
+      {
+        src: "images/hjg-turn-signal-wiring.jpg",
+        alt: "Close-up of the H.J.G motorcycle indicator pair and connecting wires"
+      }
+    ],
+    shortDescription: "A pair of H.J.G LED turn signal indicators for motorcycles.",
+    description: "Stylish motorcycle blinker lights featuring bright illumination, durable construction, a modern design, and easy installation. Please confirm wiring and fitment for your bike before ordering.",
+    fitment: "Please confirm indicator wiring, mounting compatibility, and included parts"
   },
   {
     id: 3,
@@ -134,64 +148,56 @@ const PRODUCTS = [
   },
   {
     id: 4,
-    name: "Compact Handlebar Pouch",
-    category: "Travel",
-    price: 1199,
-    badge: "Road companion",
-    image: "images/handlebar-bag.svg",
-    alt: "Illustration of a compact motorcycle handlebar travel pouch",
-    shortDescription: "A handy pouch for small ride essentials.",
-    description: "A compact storage pouch for small items you want close at hand. Check dimensions and mounting details with us before ordering.",
-    fitment: "Please confirm mounting compatibility"
+    name: "Original G15 Premium LED Projector Auxiliary Light – Powerful Focused Beam, Sleek Compact Design, Durable Metal Housing, and Easy Installation for Enhanced Motorcycle Visibility.",
+    category: "Electronics",
+    price: 479,
+    badge: "Focused beam",
+    image: "images/original-g15-auxiliary-light-front.jpg",
+    alt: "Front view of a G15 LED projector auxiliary light with a compact metal housing",
+    gallery: [
+      {
+        src: "images/original-g15-auxiliary-light-front.jpg",
+        alt: "Front view of a G15 LED projector auxiliary light with a focused projector lens"
+      },
+      {
+        src: "images/original-g15-auxiliary-light-angle.jpg",
+        alt: "Angled view of a compact LED auxiliary light with its mounting bracket and wiring"
+      },
+      {
+        src: "images/original-g15-auxiliary-light-rectifier.jpg",
+        alt: "Additional supplied image showing a motorcycle rectifier"
+      }
+    ],
+    shortDescription: "A compact G15 LED projector auxiliary light with a focused beam and metal housing.",
+    description: "A G15 LED projector auxiliary light featuring a focused beam, compact design, durable metal housing, and easy installation. Please confirm bike compatibility, wiring, mounting, and included parts before ordering.",
+    fitment: "Please confirm bike compatibility, wiring, mounting, and included parts before ordering"
   },
   {
     id: 5,
-    name: "USB Bike Charger",
+    name: "H.J.G Premium LED Headlight Bulbs – Ultra-Bright Illumination, Advanced Cooling, Durable Design, Water and Dust Resistance, Easy Installation, and 12-Month Warranty.",
     category: "Electronics",
-    price: 699,
-    badge: "Useful upgrade",
-    image: "images/usb-charger.svg",
-    alt: "Illustration of a compact USB charger for a motorcycle",
-    shortDescription: "A simple way to keep a device charged on the go.",
-    description: "A compact USB charging accessory for motorcycle use. Check the connector, installation needs, and compatibility with us before ordering.",
-    fitment: "Please confirm installation compatibility"
+    price: 659,
+    badge: "12-month warranty",
+    image: "images/hjg-led-headlight-bulbs-front.jpg",
+    alt: "Pair of H.J.G LED motorcycle headlight bulbs with cooling fins and wiring harness",
+    gallery: [
+      {
+        src: "images/hjg-led-headlight-bulbs-front.jpg",
+        alt: "Pair of H.J.G LED headlight bulbs shown with cooling fins and wiring harness"
+      },
+      {
+        src: "images/hjg-led-headlight-bulbs-handheld.jpg",
+        alt: "H.J.G LED headlight bulb and cooling assembly shown in hand"
+      },
+      {
+        src: "images/hjg-led-headlight-driver-detail.jpg",
+        alt: "Close view of the H.J.G LED headlight driver and cable assembly"
+      }
+    ],
+    shortDescription: "H.J.G LED headlight bulbs with advanced cooling and a stated 12-month warranty.",
+    description: "Ultra-bright LED headlight bulbs featuring advanced cooling, durable design, water and dust resistance, and easy installation. The product listing states a 12-month warranty; please confirm bulb fitment and warranty terms before ordering.",
+    fitment: "Please confirm bulb type, bike compatibility, installation, and warranty terms before ordering"
   },
-  {
-    id: 6,
-    name: "Disc Brake Lock",
-    category: "Security",
-    price: 1099,
-    badge: "Lock it up",
-    image: "images/disc-lock.svg",
-    alt: "Illustration of a compact disc brake lock for a motorcycle",
-    shortDescription: "A compact lock to add to your parking routine.",
-    description: "A compact disc lock for an added layer in your parking routine. Check the lock dimensions against your bike before ordering.",
-    fitment: "Please confirm disc compatibility"
-  },
-  {
-    id: 7,
-    name: "Reflective Rider Vest",
-    category: "Rider gear",
-    price: 549,
-    badge: "Visibility",
-    image: "images/reflective-vest.svg",
-    alt: "Illustration of a high-visibility reflective rider vest",
-    shortDescription: "A reflective layer for added visibility on rides.",
-    description: "A high-visibility reflective vest for riders. Ask us about available sizes and material details before ordering.",
-    fitment: "Please confirm available sizes before ordering"
-  },
-  {
-    id: 8,
-    name: "Portable Tyre Inflator",
-    category: "Travel",
-    price: 1999,
-    badge: "Ride prepared",
-    image: "images/tyre-inflator.svg",
-    alt: "Illustration of a portable tyre inflator beside a motorcycle wheel",
-    shortDescription: "A compact air inflator to keep in your ride kit.",
-    description: "A portable inflator for a rider’s kit. Check the actual power connection and operating details with us before ordering.",
-    fitment: "Please confirm power connection and compatibility"
-  }
 ];
 
 function findProduct(id) {

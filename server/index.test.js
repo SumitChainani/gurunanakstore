@@ -8,13 +8,19 @@ test("calculates the PhonePe amount in paise using server-side product prices", 
     { productId: 1, quantity: 2 },
     { productId: 3, quantity: 1 }
   ]), 119430);
-  assert.equal(getOrderTotal([{ productId: 7, quantity: 1 }]), 49410);
+  assert.equal(getOrderTotal([{ productId: 5, quantity: 1 }]), 59310);
   assert.equal(getOrderTotal([{ productId: 9, quantity: 1 }]), 57600);
   assert.equal(getOrderTotal([{ productId: 10, quantity: 1 }]), 26010);
 });
 
 test("rejects product IDs that are not in the server catalogue", () => {
   assert.throws(() => getOrderTotal([{ productId: 999, quantity: 1 }]), /invalid product or quantity/i);
+});
+
+test("removed products cannot be added to new orders", () => {
+  for (const productId of [6, 7, 8]) {
+    assert.throws(() => getOrderTotal([{ productId, quantity: 1 }]), /invalid product or quantity/i);
+  }
 });
 
 test("rejects non-integer or out-of-range quantities", () => {

@@ -16,13 +16,13 @@ module.exports = Object.freeze({
   }),
   2: Object.freeze({
     id: 2,
-    name: "Handlebar Phone Mount",
-    price: 799,
+    name: "H.J.G Premium LED Turn Signal Indicators – Stylish Motorcycle Blinker Lights Featuring Bright Illumination, Durable Construction, Modern Design, and Easy Installation.",
+    price: 299,
     category: "Electronics",
-    shortDescription: "Keep your phone visible while parked or on a route.",
-    description: "A handlebar-mounted phone holder for riders who want a visible screen position. Check your handlebar measurements and mounting details with us before ordering.",
-    fitment: "Please confirm handlebar compatibility",
-    image: "images/phone-mount.svg"
+    shortDescription: "A pair of H.J.G LED turn signal indicators for motorcycles.",
+    description: "Stylish motorcycle blinker lights featuring bright illumination, durable construction, a modern design, and easy installation. Please confirm wiring and fitment for your bike before ordering.",
+    fitment: "Please confirm indicator wiring, mounting compatibility, and included parts",
+    image: "images/hjg-turn-signal-front.jpg"
   }),
   3: Object.freeze({
     id: 3,
@@ -36,53 +36,23 @@ module.exports = Object.freeze({
   }),
   4: Object.freeze({
     id: 4,
-    name: "Compact Handlebar Pouch",
-    price: 1199,
-    category: "Travel",
-    shortDescription: "A handy pouch for small ride essentials.",
-    description: "A compact storage pouch for small items you want close at hand. Check dimensions and mounting details with us before ordering.",
-    fitment: "Please confirm mounting compatibility",
-    image: "images/handlebar-bag.svg"
+    name: "Original G15 Premium LED Projector Auxiliary Light – Powerful Focused Beam, Sleek Compact Design, Durable Metal Housing, and Easy Installation for Enhanced Motorcycle Visibility.",
+    price: 479,
+    category: "Electronics",
+    shortDescription: "A compact G15 LED projector auxiliary light with a focused beam and metal housing.",
+    description: "A G15 LED projector auxiliary light featuring a focused beam, compact design, durable metal housing, and easy installation. Please confirm bike compatibility, wiring, mounting, and included parts before ordering.",
+    fitment: "Please confirm bike compatibility, wiring, mounting, and included parts before ordering",
+    image: "images/original-g15-auxiliary-light-front.jpg"
   }),
   5: Object.freeze({
     id: 5,
-    name: "USB Bike Charger",
-    price: 699,
+    name: "H.J.G Premium LED Headlight Bulbs – Ultra-Bright Illumination, Advanced Cooling, Durable Design, Water and Dust Resistance, Easy Installation, and 12-Month Warranty.",
+    price: 659,
     category: "Electronics",
-    shortDescription: "A simple way to keep a device charged on the go.",
-    description: "A compact USB charging accessory for motorcycle use. Check the connector, installation needs, and compatibility with us before ordering.",
-    fitment: "Please confirm installation compatibility",
-    image: "images/usb-charger.svg"
-  }),
-  6: Object.freeze({
-    id: 6,
-    name: "Disc Brake Lock",
-    price: 1099,
-    category: "Security",
-    shortDescription: "A compact lock to add to your parking routine.",
-    description: "A compact disc lock for an added layer in your parking routine. Check the lock dimensions against your bike before ordering.",
-    fitment: "Please confirm disc compatibility",
-    image: "images/disc-lock.svg"
-  }),
-  7: Object.freeze({
-    id: 7,
-    name: "Reflective Rider Vest",
-    price: 549,
-    category: "Rider gear",
-    shortDescription: "A reflective layer for added visibility on rides.",
-    description: "A high-visibility reflective vest for riders. Ask us about available sizes and material details before ordering.",
-    fitment: "Please confirm available sizes before ordering",
-    image: "images/reflective-vest.svg"
-  }),
-  8: Object.freeze({
-    id: 8,
-    name: "Portable Tyre Inflator",
-    price: 1999,
-    category: "Travel",
-    shortDescription: "A compact air inflator to keep in your ride kit.",
-    description: "A portable inflator for a rider’s kit. Check the actual power connection and operating details with us before ordering.",
-    fitment: "Please confirm power connection and compatibility",
-    image: "images/tyre-inflator.svg"
+    shortDescription: "H.J.G LED headlight bulbs with advanced cooling and a stated 12-month warranty.",
+    description: "Ultra-bright LED headlight bulbs featuring advanced cooling, durable design, water and dust resistance, and easy installation. The product listing states a 12-month warranty; please confirm bulb fitment and warranty terms before ordering.",
+    fitment: "Please confirm bulb type, bike compatibility, installation, and warranty terms before ordering",
+    image: "images/hjg-led-headlight-bulbs-front.jpg"
   }),
   9: Object.freeze({
     id: 9,
