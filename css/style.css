@@ -70,6 +70,19 @@ h1, h2, h3, p { margin-top: 0; }
 .header-cart span.cart-count-arrived::after { position: absolute; inset: -3px; border: 1px solid var(--gold-pale); border-radius: 50%; content: ""; pointer-events: none; animation: cart-arrival-ring .62s ease-out both; }
 @keyframes cart-arrival-ring { from { opacity: .9; transform: scale(.72); } to { opacity: 0; transform: scale(1.9); } }
 .cart-flight-image { position: fixed; z-index: 100; display: block; border: 2px solid var(--gold-pale); border-radius: 8px; background: var(--white); box-shadow: 0 16px 36px rgba(13,20,29,.28); object-fit: cover; pointer-events: none; transform-origin: center; will-change: transform, opacity; }
+.sticky-cart-summary { position: fixed; z-index: 40; bottom: calc(82px + env(safe-area-inset-bottom, 0px)); left: 50%; width: min(420px, calc(100vw - 36px)); min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 8px 7px 13px; border: 1px solid rgba(231,216,185,.55); background: rgba(16,24,36,.97); color: var(--white); box-shadow: 0 12px 34px rgba(10,16,25,.3); backdrop-filter: blur(12px); transform: translate(-50%, 12px); opacity: 0; pointer-events: none; }
+.sticky-cart-summary:not([hidden]) { animation: cart-bar-enter .34s cubic-bezier(.2,.75,.2,1) both; opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+.sticky-cart-copy { min-width: 0; }
+.sticky-cart-kicker { display: block; margin-bottom: 3px; color: var(--gold-pale); font-size: 8px; font-weight: 700; letter-spacing: .15em; }
+.sticky-cart-copy p { display: flex; align-items: baseline; gap: 5px; margin: 0; color: #e5e8ec; font-size: 10px; font-weight: 600; white-space: nowrap; }
+.sticky-cart-copy strong { color: var(--white); font-size: 13px; }
+.sticky-cart-link { min-width: 96px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 7px 9px; background: var(--gold); color: var(--navy-deep); font-size: 9px; font-weight: 700; transition: background-color .2s ease, transform .2s ease; }
+.sticky-cart-link:hover { background: var(--gold-pale); transform: translateY(-1px); }
+.sticky-cart-summary.cart-bar-updated { animation: cart-bar-update .38s cubic-bezier(.2,.8,.25,1); }
+.sticky-cart-summary.cart-bar-leaving:not([hidden]) { animation: cart-bar-exit .24s ease both; pointer-events: none; }
+@keyframes cart-bar-enter { from { opacity: 0; transform: translate(-50%, 15px) scale(.98); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+@keyframes cart-bar-update { 0%, 100% { transform: translate(-50%, 0) scale(1); } 45% { transform: translate(-50%, -3px) scale(1.012); } }
+@keyframes cart-bar-exit { to { opacity: 0; transform: translate(-50%, 12px) scale(.98); } }
 [hidden] { display: none !important; }
 
 .hero { background: var(--navy); color: var(--white); }
