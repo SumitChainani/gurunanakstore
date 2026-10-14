@@ -26,7 +26,7 @@ const path = require("node:path");
 const { URL } = require("node:url");
 const PRODUCT_CATALOG = require("./catalog");
 const { createSupportRateLimiter, normalizeSupportMessages, requestSupportReply } = require("./support-chat");
-const PHONEPE_DISCOUNT_PERCENT = 10;
+const PHONEPE_DISCOUNT_PERCENT = 12;
 const TRACKING_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 const PORT = Number(process.env.PORT || 8787);
@@ -145,7 +145,7 @@ function getOrderTotal(items) {
   if (!Number.isSafeInteger(totalRupees) || totalRupees < 1 || totalRupees > 1000000) {
     throw Object.assign(new Error("The order amount is outside the allowed range."), { statusCode: 400 });
   }
-  // PhonePe orders receive 10% off the merchandise total. The result is
+  // PhonePe orders receive 12% off the merchandise total. The result is
   // returned in paise so the discount stays exact for UPI payments.
   return Math.round(totalRupees * (100 - PHONEPE_DISCOUNT_PERCENT));
 }

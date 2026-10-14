@@ -3,14 +3,17 @@ const assert = require("node:assert/strict");
 const { getOrderTotal } = require("./index");
 
 test("calculates the PhonePe amount in paise using server-side product prices", () => {
-  assert.equal(getOrderTotal([{ productId: 1, quantity: 1 }]), 32310);
+  assert.equal(getOrderTotal([{ productId: 1, quantity: 1 }]), 28952);
   assert.equal(getOrderTotal([
     { productId: 1, quantity: 2 },
     { productId: 3, quantity: 1 }
-  ]), 119430);
-  assert.equal(getOrderTotal([{ productId: 5, quantity: 1 }]), 59310);
-  assert.equal(getOrderTotal([{ productId: 9, quantity: 1 }]), 57600);
-  assert.equal(getOrderTotal([{ productId: 10, quantity: 1 }]), 26010);
+  ]), 108856);
+  assert.equal(getOrderTotal([{ productId: 5, quantity: 1 }]), 55352);
+  assert.equal(getOrderTotal([{ productId: 9, quantity: 1 }]), 53680);
+  assert.equal(getOrderTotal([{ productId: 10, quantity: 1 }]), 22792);
+  assert.equal(getOrderTotal([{ productId: 11, quantity: 1 }]), 30712);
+  assert.equal(getOrderTotal([{ productId: 12, quantity: 1 }]), 30712);
+  assert.equal(getOrderTotal([{ productId: 13, quantity: 1 }]), 37752);
 });
 
 test("rejects product IDs that are not in the server catalogue", () => {

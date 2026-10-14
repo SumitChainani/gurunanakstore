@@ -8,7 +8,7 @@ Open index.html in a web browser. Use Shop to browse items, Add to put an item i
 
 ## PhonePe and UPI payments
 
-Checkout creates a dynamic UPI QR for the current cart. It includes the configured UPI ID, payee name, a unique order reference, and the item total after the 10% PhonePe discount. The customer scans it with PhonePe or another UPI app and checks the payee and amount before approving. Delivery charges are confirmed separately.
+Checkout creates a dynamic UPI QR for the current cart. It includes the configured UPI ID, payee name, a unique order reference, and the item total after the 12% PhonePe discount. The customer scans it with PhonePe or another UPI app and checks the payee and amount before approving. Delivery charges are confirmed separately.
 
 The QR is generated in the browser using the pinned `qrcode-generator` library from jsDelivr ([upstream project and MIT license](https://github.com/kazuhikoarase/qrcode-generator)). Checkout needs an internet connection to load that library. The old fixed QR image is not used for cart payments because it cannot carry a changing amount.
 

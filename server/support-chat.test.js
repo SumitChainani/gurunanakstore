@@ -60,20 +60,24 @@ test("allows general help and anchors store answers to product facts and owner p
   assert.match(instructions, /Listed catalogue products are available to order/i);
   assert.match(instructions, /delivery is free and expected in under 7 days/i);
   assert.match(instructions, /team sends the delivery code to the WhatsApp number provided by the customer/i);
-  assert.match(instructions, /PhonePe\/UPI payment receives a 10% discount/i);
+  assert.match(instructions, /PhonePe\/UPI payment receives a 12% discount/i);
   assert.match(instructions, /Customers may request a return within 3 days/i);
   assert.match(instructions, /single continuous unboxing video must show the sealed parcel, shipping label, opening, and product/i);
   assert.match(instructions, /customer may choose a refund or replacement/i);
   assert.match(instructions, /An order may be cancelled before it is approved/i);
-  assert.match(instructions, /Every product has a 1–3 month warranty/i);
+  assert.match(instructions, /Each listed product has a 1-month warranty unless its catalogue entry states a longer period/i);
+  assert.match(instructions, /H\.J\.G LED headlight bulbs list a 12-month warranty/i);
   assert.match(instructions, /product that is not working is covered/i);
   assert.match(instructions, /Never ask for or accept a delivery code/i);
 });
 
 test("uses the storefront's current prices and product facts in the backend catalogue", () => {
   const instructions = buildSupportInstructions();
-  assert.match(instructions, /"name":"Helmet LED – Dual Beam Smart Light[^\n]+"price":359/);
-  assert.match(instructions, /"name":"HJG 3-Lens LED Motorcycle Light[^\n]+"price":609/);
+  assert.match(instructions, /"name":"Helmet LED – Dual Beam Smart Light[^\n]+"price":329/);
+  assert.match(instructions, /"name":"HJG 3-Lens LED Motorcycle Light[^\n]+"price":579/);
+  assert.match(instructions, /"name":"H\.J\.G Premium LED Fog Light Indicator[^\n]+"price":349/);
+  assert.match(instructions, /"name":"H\.J\.G Premium Multicolor LED Motorcycle Indicator Light[^\n]+"price":349/);
+  assert.match(instructions, /"name":"H\.J\.G Premium Red Lens LED Auxiliary Light[^\n]+"price":429/);
   assert.match(instructions, /"category":"Rider gear"/);
   assert.match(instructions, /"fitment":"Please confirm helmet compatibility/);
   assert.match(instructions, /product\.html\?id=1/);

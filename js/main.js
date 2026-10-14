@@ -8,7 +8,7 @@
 
 const STORE_NAME = "GurunanakStore";
 const STORE_PHONE = "918815960890";
-const PHONEPE_DISCOUNT_PERCENT = 10;
+const PHONEPE_DISCOUNT_PERCENT = 12;
 const CART_STORAGE_KEY = "gurunanakAccessoriesCart";
 const CHECKOUT_DRAFT_STORAGE_KEY = "gurunanakCheckoutDraft";
 const CHECKOUT_FLY_ORIGIN_STORAGE_KEY = "gurunanakCheckoutFlyOrigin";
@@ -973,21 +973,21 @@ function renderCheckoutPage() {
     '<p><a class="text-link text-link-dark" href="cart.html">← Back to your cart</a></p>',
     '<aside class="order-summary checkout-summary"><p class="eyebrow eyebrow-dark">Your order</p>' + summaryRows,
     '<div class="summary-line"><span>Delivery</span><strong>Confirm with support first</strong></div>',
-    '<div class="summary-total"><span data-checkout-total-label>PhonePe total after 10% discount</span><strong data-checkout-total>' + formatExactPrice(paymentTotal.payable) + '</strong></div>',
-    '<p class="summary-note">PhonePe UPI gets 10% off. Cash on delivery has no PhonePe discount. Delivery charges are confirmed separately.</p></aside></div>',
+    '<div class="summary-total"><span data-checkout-total-label>PhonePe total after 12% discount</span><strong data-checkout-total>' + formatExactPrice(paymentTotal.payable) + '</strong></div>',
+    '<p class="summary-note">PhonePe UPI gets 12% off. Cash on delivery has no PhonePe discount. Delivery charges are confirmed separately.</p></aside></div>',
     '<form class="checkout-form" data-checkout-form>',
     '<div class="form-grid"><label>Full name<input name="name" autocomplete="name" placeholder="Your full name" required /></label>',
     '<label>Phone number<input name="phone" autocomplete="tel" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" placeholder="10-digit mobile number" required /></label></div>',
     '<label>Delivery address<textarea name="address" autocomplete="street-address" placeholder="House number, street, area, city, state and PIN code" required></textarea></label>',
     '<fieldset class="payment-method-options"><legend>Choose a payment method</legend>',
-    '<label class="payment-method-option"><input type="radio" name="paymentMethod" value="PHONEPE_UPI" checked /><span><strong>PhonePe / UPI</strong><small>Pay now by QR and get 10% off.</small></span></label>',
+    '<label class="payment-method-option"><input type="radio" name="paymentMethod" value="PHONEPE_UPI" checked /><span><strong>PhonePe / UPI</strong><small>Pay now by QR and get 12% off.</small></span></label>',
     '<label class="payment-method-option"><input type="radio" name="paymentMethod" value="COD" /><span><strong>Cash on delivery</strong><small>Pay cash when the order arrives. No advance payment.</small></span></label></fieldset>',
     '<div data-upi-payment-details><section class="phonepe-payment-panel" aria-labelledby="phonepe-heading"><p class="eyebrow eyebrow-dark">UPI PAYMENT</p><h2 id="phonepe-heading"><span class="phonepe-mark" aria-hidden="true">पे</span> PhonePe QR</h2>',
-    '<p>The QR includes your cart amount after the 10% PhonePe discount. Scan it and check the payee and amount in your UPI app before confirming.</p>',
+    '<p>The QR includes your cart amount after the 12% PhonePe discount. Scan it and check the payee and amount in your UPI app before confirming.</p>',
     '<input type="hidden" name="orderReference" value="' + orderReference + '" />',
     '<div class="dynamic-qr-panel"><p class="eyebrow eyebrow-dark">SCAN WITH PHONEPE OR ANY UPI APP</p><h3>Payment QR</h3>',
     '<div class="dynamic-upi-qr" data-upi-qr aria-live="polite">Creating your payment QR…</div>',
-    '<p class="dynamic-qr-amount">Amount in QR (10% discount included): <strong>' + formatExactPrice(paymentTotal.payable) + '</strong></p>',
+    '<p class="dynamic-qr-amount">Amount in QR (12% discount included): <strong>' + formatExactPrice(paymentTotal.payable) + '</strong></p>',
     '<p class="dynamic-qr-note">After paying, enter the PhonePe transaction ID shown in your payment app before sending your order for approval. The store checks QR payments manually before approval.</p></div></section>',
     '<label class="payment-reference-label">PhonePe transaction ID (required for PhonePe orders)<input name="paymentReference" maxlength="50" placeholder="Enter the transaction ID shown in PhonePe" required /></label></div>',
     '<div class="cod-payment-note" data-cod-payment-note hidden><strong>Cash on delivery selected</strong><span>You will pay the order amount when it is delivered. Your request will be sent to GurunanakStore on WhatsApp for approval.</span></div>',
@@ -1117,7 +1117,7 @@ function updateCheckoutPaymentMethod(form, paymentTotal, animateSwitch = false) 
     paymentReference.required = !isCOD;
     if (isCOD) paymentReference.value = "";
   }
-  if (totalLabel) totalLabel.textContent = isCOD ? "Cash due on delivery" : "PhonePe total after 10% discount";
+  if (totalLabel) totalLabel.textContent = isCOD ? "Cash due on delivery" : "PhonePe total after 12% discount";
   if (totalValue) {
     totalValue.textContent = isCOD ? formatPrice(paymentTotal.subtotal) : formatExactPrice(paymentTotal.payable);
     totalValue.classList.remove("checkout-total-pop");
@@ -1245,7 +1245,7 @@ function renderPhonePeReturnPage(target) {
         const orderMessage = "Namaste " + STORE_NAME + ", my PhonePe payment is confirmed.\n\n" +
           "Order reference: " + merchantOrderId + "\n" + itemLines + "\n\n" +
           "Items subtotal: " + formatPrice(orderSubtotal) + "\n" +
-          "PhonePe discount (10%): −" + formatExactPrice(orderDiscount) + "\n" +
+          "PhonePe discount (12%): −" + formatExactPrice(orderDiscount) + "\n" +
           "Paid through PhonePe: " + formatExactPrice(orderContext.amountPaise / 100) + "\n" +
           "Name: " + orderContext.customer.name + "\n" +
           "Phone: " + orderContext.customer.phone + "\n" +
@@ -1338,7 +1338,7 @@ function renderManualOrderStatus(target, orderNumber, amount, paymentReference, 
         ? 'This is a cash-on-delivery request. No online payment has been collected; cash is due at delivery after the store accepts the order.'
         : 'The order is saved securely. A transaction reference is only a clue; the store must check the PhonePe Business account before approving payment.'
       : 'Send the prepared WhatsApp message to place this order. Website status tracking will start after the store’s order server is connected.') + '</span></div>',
-    '<p class="payment-result-copy payment-result-amount">' + (isCOD ? 'Cash due on delivery: ' : 'PhonePe QR amount after 10% discount: ') + '<strong>' + (isCOD ? formatPrice(amount) : formatExactPrice(amount)) + '</strong></p>',
+    '<p class="payment-result-copy payment-result-amount">' + (isCOD ? 'Cash due on delivery: ' : 'PhonePe QR amount after 12% discount: ') + '<strong>' + (isCOD ? formatPrice(amount) : formatExactPrice(amount)) + '</strong></p>',
     '<p class="payment-result-copy">' + (savedOrder
       ? 'Your order is saved. Open the prepared WhatsApp message below and tap Send so the store receives your details.'
       : whatsappOpened
@@ -1684,7 +1684,7 @@ async function submitOrder(event) {
     (savedOrder ? (savedOrder.checkoutReference ? "UPI QR reference: " + savedOrder.checkoutReference + "\n" : "") + "Order status page: " + new URL(savedOrder.trackingCode ? "order.html?trackingCode=" + encodeURIComponent(savedOrder.trackingCode) : "order.html?orderId=" + encodeURIComponent(savedOrder.orderId), window.location.href).toString() + "\n\n" : "") +
     (isCOD
       ? "Payment method: Cash on Delivery\nCash due at delivery: " + formatPrice(finalAmount) + "\nPayment: I will pay in cash when the order is delivered. Please approve my COD order.\n\n"
-      : "Payment method: PhonePe / UPI\nItems total before PhonePe discount: " + formatPrice(itemsSubtotal(items)) + "\nPhonePe QR amount after 10% discount: " + formatExactPrice(phonePePaymentTotal(items).payable) + "\n" +
+      : "Payment method: PhonePe / UPI\nItems total before PhonePe discount: " + formatPrice(itemsSubtotal(items)) + "\nPhonePe QR amount after 12% discount: " + formatExactPrice(phonePePaymentTotal(items).payable) + "\n" +
         "PhonePe transaction ID: " + paymentReference + "\n\n") +
     "Delivery: Please confirm the availability and charge for my address.\n" +
     "Name: " + details.name + "\n" +
@@ -1739,7 +1739,7 @@ function getLocalSupportAnswer(message) {
     return "To check an order, open My Orders and enter the unique tracking code from your order message. I can’t look up private order details in this chat.";
   }
   if (/phonepe|upi|payment|pay|qr|transaction|पेमेंट|भुगतान/.test(question)) {
-    return "PhonePe/UPI orders get 10% off the product total. Scan the checkout QR and verify the payee and amount in your UPI app. Cash on delivery has no PhonePe discount. A person checks QR payment references before approving an order.";
+    return "PhonePe/UPI orders get 12% off the product total. Scan the checkout QR and verify the payee and amount in your UPI app. Cash on delivery has no PhonePe discount. A person checks QR payment references before approving an order.";
   }
   if (/cod|cash on delivery|delivery payment/.test(question)) {
     return "Cash on delivery is available at checkout. There is no PhonePe discount on COD; you pay when the approved order arrives. Delivery charges and timing are confirmed separately.";
