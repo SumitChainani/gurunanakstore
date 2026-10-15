@@ -14,6 +14,9 @@ test("calculates the PhonePe amount in paise using server-side product prices", 
   assert.equal(getOrderTotal([{ productId: 11, quantity: 1 }]), 30712);
   assert.equal(getOrderTotal([{ productId: 12, quantity: 1 }]), 30712);
   assert.equal(getOrderTotal([{ productId: 13, quantity: 1 }]), 37752);
+  assert.equal(getOrderTotal([{ productId: 14, quantity: 1 }]), 37752);
+  assert.equal(getOrderTotal([{ productId: 15, quantity: 1 }]), 59752);
+  assert.equal(getOrderTotal([{ productId: 16, quantity: 1 }]), 35112);
 });
 
 test("rejects product IDs that are not in the server catalogue", () => {

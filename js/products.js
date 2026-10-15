@@ -284,6 +284,96 @@ const PRODUCTS = [
     description: "A compact H.J.G red-lens LED auxiliary light for bikes and cars, featuring bright illumination and a durable build. Please confirm vehicle compatibility, wiring, mounting, and included parts before ordering. Includes a 1-month warranty.",
     fitment: "Please confirm vehicle compatibility, wiring, mounting, and included parts before ordering"
   },
+  {
+    id: 14,
+    name: "Brighter Roads 5-Eye Blue LED Auxiliary Light Bar for Bikes & Cars – High Brightness, Rugged Design, Modern Performance Lighting | 1-Month Warranty",
+    category: "Electronics",
+    price: 429,
+    badge: "5-eye LED light bar",
+    image: "images/brighter-roads-5-eye-blue-led-light-bar.png",
+    alt: "Five-eye blue LED auxiliary light bar for bikes and cars",
+    gallery: [
+      {
+        src: "images/brighter-roads-5-eye-blue-led-light-bar.png",
+        alt: "Blue five-eye LED auxiliary light bar shown from the front"
+      },
+      {
+        src: "images/five-eye-led-spotlight-advertisement.png",
+        alt: "Five-eye LED spotlight bar shown from front and side"
+      },
+      {
+        src: "images/premium-led-light-bar-advertisement.png",
+        alt: "Rear view of the LED light bar with its cable and housing"
+      },
+      {
+        src: "images/high-low-beam-comparison.png",
+        alt: "Comparison of white high beam, yellow low beam, and combined beam patterns"
+      }
+    ],
+    shortDescription: "A five-eye blue LED auxiliary light bar for bikes and cars with a rugged design. Includes a 1-month warranty.",
+    description: "A five-eye blue LED auxiliary light bar for bikes and cars, featuring high brightness, a rugged design, and modern styling. Please confirm vehicle fitment, wiring, mounting, and included parts before ordering. Includes a 1-month warranty.",
+    fitment: "Please confirm vehicle fitment, wiring, mounting, and included parts before ordering"
+  },
+  {
+    id: 15,
+    name: "CICADA 60W LED Projector Headlight Bulb for Bikes & Cars – Premium Bright White Illumination, Advanced Lens Technology, Durable Design, Easy Installation | 1-Month Warranty",
+    category: "Electronics",
+    price: 679,
+    badge: "60W LED projector",
+    image: "images/cicada-60w-projector-headlight-front.png",
+    alt: "Pair of CICADA projector LED headlight bulbs with bright yellow lens caps",
+    gallery: [
+      {
+        src: "images/cicada-60w-projector-headlight-front.png",
+        alt: "Pair of CICADA LED projector headlight bulbs shown from the front and rear"
+      },
+      {
+        src: "images/cicada-60w-projector-headlight-size.jpg",
+        alt: "H4 bulb size and dimensions with mini fan and plug details"
+      },
+      {
+        src: "images/cicada-60w-projector-headlight-details.jpg",
+        alt: "Projector lens, plug-and-play installation, and cooling fan details"
+      },
+      {
+        src: "images/cicada-60w-projector-headlight-beam.jpg",
+        alt: "Low-beam and high-beam illumination comparison"
+      }
+    ],
+    shortDescription: "A CICADA 60W LED projector headlight bulb for bikes and cars with bright white illumination and a 1-month warranty.",
+    description: "A CICADA 60W LED projector headlight bulb for bikes and cars, featuring bright white illumination, advanced lens technology, a durable design, and easy installation. Check the H4 socket and confirm vehicle compatibility before ordering. Includes a 1-month warranty.",
+    fitment: "Check the H4 socket and confirm vehicle compatibility, wiring, and included parts before ordering"
+  },
+  {
+    id: 16,
+    name: "40W LED Auxiliary Spotlight for Bikes, Motorcycles & Trucks, Multi-Color Lighting, White Yellow Red Blue Modes, Flash Function, Powerful Brightness, Durable Design | 1-Month Warranty",
+    category: "Electronics",
+    price: 399,
+    badge: "40W multi-color spotlight",
+    image: "images/40w-led-auxiliary-spotlight-front.png",
+    alt: "Compact square blue LED auxiliary spotlight for motorcycles and trucks",
+    gallery: [
+      {
+        src: "images/40w-led-auxiliary-spotlight-front.png",
+        alt: "Compact blue LED auxiliary spotlight with bright illumination"
+      },
+      {
+        src: "images/40w-led-auxiliary-spotlight-size.avif",
+        alt: "Auxiliary spotlight size and dimensions"
+      },
+      {
+        src: "images/40w-led-auxiliary-spotlight-square.avif",
+        alt: "Square auxiliary spotlight product image"
+      },
+      {
+        src: "images/40w-led-auxiliary-spotlight-modes.png",
+        alt: "LED spotlight mode guide showing white, yellow, red, blue, and flashing modes"
+      }
+    ],
+    shortDescription: "A 40W multi-color LED auxiliary spotlight for bikes, motorcycles, and trucks with several light modes and a 1-month warranty.",
+    description: "A 40W LED auxiliary spotlight for bikes, motorcycles, and trucks, with white, yellow, red, and blue lighting modes, a flash function, powerful brightness, and a durable design. Confirm vehicle compatibility, wiring, mounting, and included parts before ordering. Includes a 1-month warranty.",
+    fitment: "Confirm vehicle compatibility, wiring, mounting, and included parts before ordering"
+  },
 ];
 
 function findProduct(id) {

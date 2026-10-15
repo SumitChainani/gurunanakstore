@@ -78,6 +78,9 @@ test("uses the storefront's current prices and product facts in the backend cata
   assert.match(instructions, /"name":"H\.J\.G Premium LED Fog Light Indicator[^\n]+"price":349/);
   assert.match(instructions, /"name":"H\.J\.G Premium Multicolor LED Motorcycle Indicator Light[^\n]+"price":349/);
   assert.match(instructions, /"name":"H\.J\.G Premium Red Lens LED Auxiliary Light[^\n]+"price":429/);
+  assert.match(instructions, /"name":"Brighter Roads 5-Eye Blue LED Auxiliary Light Bar[^\n]+"price":429/);
+  assert.match(instructions, /"name":"CICADA 60W LED Projector Headlight Bulb for Bikes & Cars[^\n]+"price":679/);
+  assert.match(instructions, /"name":"40W LED Auxiliary Spotlight for Bikes, Motorcycles & Trucks[^\n]+"price":399/);
   assert.match(instructions, /"category":"Rider gear"/);
   assert.match(instructions, /"fitment":"Please confirm helmet compatibility/);
   assert.match(instructions, /product\.html\?id=1/);

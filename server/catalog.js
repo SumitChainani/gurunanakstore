@@ -103,5 +103,35 @@ module.exports = Object.freeze({
     description: "A compact H.J.G red-lens LED auxiliary light for bikes and cars, featuring bright illumination and a durable build. Please confirm vehicle compatibility, wiring, mounting, and included parts before ordering. Includes a 1-month warranty.",
     fitment: "Please confirm vehicle compatibility, wiring, mounting, and included parts before ordering",
     image: "images/hjg-red-lens-auxiliary-light-front.webp"
+  }),
+  14: Object.freeze({
+    id: 14,
+    name: "Brighter Roads 5-Eye Blue LED Auxiliary Light Bar for Bikes & Cars – High Brightness, Rugged Design, Modern Performance Lighting | 1-Month Warranty",
+    price: 429,
+    category: "Electronics",
+    shortDescription: "A five-eye blue LED auxiliary light bar for bikes and cars with a rugged design. Includes a 1-month warranty.",
+    description: "A five-eye blue LED auxiliary light bar for bikes and cars, featuring high brightness, a rugged design, and modern styling. Please confirm vehicle fitment, wiring, mounting, and included parts before ordering. Includes a 1-month warranty.",
+    fitment: "Please confirm vehicle fitment, wiring, mounting, and included parts before ordering",
+    image: "images/brighter-roads-5-eye-blue-led-light-bar.png"
+  }),
+  15: Object.freeze({
+    id: 15,
+    name: "CICADA 60W LED Projector Headlight Bulb for Bikes & Cars – Premium Bright White Illumination, Advanced Lens Technology, Durable Design, Easy Installation | 1-Month Warranty",
+    price: 679,
+    category: "Electronics",
+    shortDescription: "A CICADA 60W LED projector headlight bulb for bikes and cars with bright white illumination and a 1-month warranty.",
+    description: "A CICADA 60W LED projector headlight bulb for bikes and cars, featuring bright white illumination, advanced lens technology, a durable design, and easy installation. Check the H4 socket and confirm vehicle compatibility before ordering. Includes a 1-month warranty.",
+    fitment: "Check the H4 socket and confirm vehicle compatibility, wiring, and included parts before ordering",
+    image: "images/cicada-60w-projector-headlight-front.png"
+  }),
+  16: Object.freeze({
+    id: 16,
+    name: "40W LED Auxiliary Spotlight for Bikes, Motorcycles & Trucks, Multi-Color Lighting, White Yellow Red Blue Modes, Flash Function, Powerful Brightness, Durable Design | 1-Month Warranty",
+    price: 399,
+    category: "Electronics",
+    shortDescription: "A 40W multi-color LED auxiliary spotlight for bikes, motorcycles, and trucks with several light modes and a 1-month warranty.",
+    description: "A 40W LED auxiliary spotlight for bikes, motorcycles, and trucks, with white, yellow, red, and blue lighting modes, a flash function, powerful brightness, and a durable design. Confirm vehicle compatibility, wiring, mounting, and included parts before ordering. Includes a 1-month warranty.",
+    fitment: "Confirm vehicle compatibility, wiring, mounting, and included parts before ordering",
+    image: "images/40w-led-auxiliary-spotlight-front.png"
   })
 });
