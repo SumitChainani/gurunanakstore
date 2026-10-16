@@ -6,6 +6,8 @@
 
   Routes:
     GET  /health                      Basic readiness check
+    GET  /webhooks/whatsapp            Verify the Meta WhatsApp webhook
+    POST /webhooks/whatsapp            Receive signed WhatsApp webhook events
     POST /api/orders                  Save a customer order for owner approval
     GET  /api/orders/status?trackingCode=... Let a customer check approval status
     POST /api/admin/login             Check the private owner password
@@ -26,6 +28,8 @@ const path = require("node:path");
 const { URL } = require("node:url");
 const PRODUCT_CATALOG = require("./catalog");
 const { createSupportRateLimiter, normalizeSupportMessages, requestSupportReply } = require("./support-chat");
+const { isWhatsAppAlertsConfigured, sendNewOrderWhatsAppAlert } = require("./whatsapp-notifications");
+const { parseWebhookEvents, readRawWebhookBody, verifyMetaSignature, verifyWebhookChallenge } = require("./whatsapp-webhook");
 const PHONEPE_DISCOUNT_PERCENT = 12;
 const TRACKING_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -38,6 +42,8 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 const SITE_URL = process.env.SITE_URL || "https://gurunanakstore.shop";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
+const WHATSAPP_VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "";
+const WHATSAPP_APP_SECRET = process.env.WHATSAPP_APP_SECRET || "";
 const ORDERS_FILE = path.resolve(process.env.ORDERS_FILE || path.join(__dirname, "data", "orders.json"));
 const ALLOWED_ORIGINS = new Set(
   String(process.env.SITE_ORIGINS || "https://gurunanakstore.shop,https://www.gurunanakstore.shop")
@@ -89,6 +95,27 @@ function corsHeaders(origin) {
 function sendJson(response, status, body, origin) {
   response.writeHead(status, corsHeaders(origin));
   response.end(JSON.stringify(body));
+}
+
+function sendWebhookResponse(response, status, body, contentType = "text/plain; charset=utf-8") {
+  response.writeHead(status, {
+    "Content-Type": contentType,
+    "Cache-Control": "no-store",
+    "X-Content-Type-Options": "nosniff"
+  });
+  response.end(body);
+}
+
+function queueNewOrderWhatsAppAlert(order) {
+  void sendNewOrderWhatsAppAlert(order).then((result) => {
+    if (result.skipped) {
+      console.warn("New-order WhatsApp alert skipped because required server configuration is missing for order", order.orderId);
+      return;
+    }
+    console.info("New-order WhatsApp alert accepted by Meta for order", order.orderId);
+  }).catch((error) => {
+    console.error("New-order WhatsApp alert failed for order", order.orderId + ":", error.message);
+  });
 }
 
 function supportClientKey(request) {
@@ -433,6 +460,44 @@ const server = http.createServer(async (request, response) => {
   const origin = request.headers.origin || "";
   const requestUrl = new URL(request.url, "http://localhost");
 
+  if (requestUrl.pathname === "/webhooks/whatsapp") {
+    if (request.method === "GET") {
+      const mode = requestUrl.searchParams.get("hub.mode") || "";
+      const verifyToken = requestUrl.searchParams.get("hub.verify_token") || "";
+      const challenge = requestUrl.searchParams.get("hub.challenge") || "";
+      if (WHATSAPP_VERIFY_TOKEN.length < 32) {
+        return sendWebhookResponse(response, 503, "WhatsApp webhook verification is not configured.");
+      }
+      if (mode !== "subscribe" || !challenge || challenge.length > 256 || !verifyWebhookChallenge(verifyToken, WHATSAPP_VERIFY_TOKEN)) {
+        return sendWebhookResponse(response, 403, "Webhook verification failed.");
+      }
+      return sendWebhookResponse(response, 200, challenge);
+    }
+
+    if (request.method === "POST") {
+      if (!WHATSAPP_APP_SECRET) {
+        return sendWebhookResponse(response, 503, JSON.stringify({ error: "WhatsApp webhook signature verification is not configured." }), "application/json; charset=utf-8");
+      }
+      try {
+        const rawBody = await readRawWebhookBody(request);
+        if (!verifyMetaSignature(rawBody, request.headers["x-hub-signature-256"], WHATSAPP_APP_SECRET)) {
+          return sendWebhookResponse(response, 401, JSON.stringify({ error: "Webhook signature is invalid." }), "application/json; charset=utf-8");
+        }
+        const events = parseWebhookEvents(rawBody);
+        if (events.incomingMessages || events.statusUpdates) {
+          console.info("WhatsApp webhook received:", `${events.incomingMessages} incoming message(s), ${events.statusUpdates} status update(s)`);
+        }
+        return sendWebhookResponse(response, 200, JSON.stringify({ received: true }), "application/json; charset=utf-8");
+      } catch (error) {
+        const status = Number(error.statusCode) || 400;
+        return sendWebhookResponse(response, status, JSON.stringify({ error: status === 413 ? "Webhook payload is too large." : "Webhook payload is invalid." }), "application/json; charset=utf-8");
+      }
+    }
+
+    response.writeHead(405, { Allow: "GET, POST", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });
+    return response.end();
+  }
+
   if (request.method === "OPTIONS") {
     if (!ALLOWED_ORIGINS.has(origin)) return sendJson(response, 403, { error: "This website is not allowed to use the payment service." }, "");
     response.writeHead(204, corsHeaders(origin));
@@ -448,6 +513,7 @@ const server = http.createServer(async (request, response) => {
       ok: true,
       configured: isConfigured(),
       adminConfigured: ADMIN_PASSWORD.length >= 20,
+      whatsappAlertsConfigured: isWhatsAppAlertsConfigured(),
       codEnabled: true,
       environment: PHONEPE_ENV
     }, origin);
@@ -495,15 +561,25 @@ const server = http.createServer(async (request, response) => {
     try {
       const body = await readJson(request);
       const order = buildOrder(body);
-      const savedOrder = await updateOrders((orders) => {
+      const saveResult = await updateOrders((orders) => {
         const existingOrder = orders.find((entry) => entry.checkoutReference === order.checkoutReference);
-        if (existingOrder) return existingOrder;
+        if (existingOrder) return { order: existingOrder, created: false };
         while (orders.some((entry) => normalizeTrackingCode(entry.trackingCode) === order.trackingCode)) {
           order.trackingCode = generateTrackingCode();
         }
         orders.unshift(order);
-        return order;
+        return { order, created: true };
       });
+      const savedOrder = saveResult.order;
+      if (saveResult.created && savedOrder.paymentMethod === "COD") {
+        // COD does not require payment before order placement, so it can alert
+        // the owner immediately after the order is durably saved.
+        queueNewOrderWhatsAppAlert({
+          orderId: savedOrder.orderId,
+          amountRupees: savedOrder.amountRupees,
+          createdAt: savedOrder.createdAt
+        });
+      }
       return sendJson(response, 201, {
         ...publicOrder(savedOrder),
         checkoutReference: savedOrder.checkoutReference,
@@ -575,9 +651,10 @@ const server = http.createServer(async (request, response) => {
     if (!hasAdminAccess(request)) return sendJson(response, 401, { error: "Owner sign-in is required." }, origin);
     try {
       const orderId = approveMatch[1];
-      const order = await updateOrders((orders) => {
+      const approvalResult = await updateOrders((orders) => {
         const foundOrder = orders.find((entry) => entry.orderId === orderId);
         if (!foundOrder) return null;
+        let notificationOrder = null;
         if (foundOrder.status === "REJECTED") {
           throw Object.assign(new Error("This order was rejected and cannot be approved."), { statusCode: 409 });
         }
@@ -593,12 +670,18 @@ const server = http.createServer(async (request, response) => {
             foundOrder.status = "APPROVED";
             foundOrder.paymentStatus = "MANUALLY_VERIFIED";
             foundOrder.confirmedAt = new Date().toISOString();
+            notificationOrder = {
+              orderId: foundOrder.orderId,
+              amountRupees: foundOrder.amountRupees,
+              createdAt: foundOrder.createdAt
+            };
           }
         }
-        return publicOrder(foundOrder);
+        return { order: publicOrder(foundOrder), notificationOrder };
       });
-      if (!order) return sendJson(response, 404, { error: "We could not find this order." }, origin);
-      return sendJson(response, 200, order, origin);
+      if (!approvalResult) return sendJson(response, 404, { error: "We could not find this order." }, origin);
+      if (approvalResult.notificationOrder) queueNewOrderWhatsAppAlert(approvalResult.notificationOrder);
+      return sendJson(response, 200, approvalResult.order, origin);
     } catch (error) {
       const status = Number(error.statusCode) || 500;
       if (status >= 500) console.error("Order approval could not be saved:", error.message);
