@@ -896,7 +896,10 @@ function renderCartPage() {
     '<div class="summary-line"><span>Delivery</span><strong>Confirm on WhatsApp</strong></div>',
     '<div class="summary-total"><span>Items total</span><strong>' + formatPrice(cartTotal()) + '</strong></div>',
     '<p class="summary-note">We’ll confirm stock, fit, delivery availability, and any delivery charge before payment.</p>',
-    '<a class="button button-gold button-wide continue-checkout-button" href="checkout.html" data-start-checkout>Continue to checkout <span aria-hidden="true">→</span></a></aside></div></section>'
+    '<a class="button button-gold button-wide continue-checkout-button" href="checkout.html" data-start-checkout>',
+    '<span class="continue-checkout-eyes" aria-hidden="true"><span class="continue-checkout-eye"><span class="continue-checkout-pupil"></span></span><span class="continue-checkout-eye"><span class="continue-checkout-pupil"></span></span></span>',
+    '<span class="continue-checkout-cover"><span>Continue to checkout</span><span aria-hidden="true">→</span></span>',
+    '<span class="continue-checkout-placeholder" aria-hidden="true"><span>Continue to checkout</span><span>→</span></span></a></aside></div></section>'
   ].join("");
 
   observeMotionTargets(target);
@@ -928,6 +931,32 @@ function renderCartPage() {
   const checkoutLink = target.querySelector("[data-start-checkout]");
   if (checkoutLink) {
     let checkoutNavigationPending = false;
+    const checkoutEyes = checkoutLink.querySelector(".continue-checkout-eyes");
+    const resetCheckoutEyes = () => {
+      checkoutLink.style.removeProperty("--checkout-eye-x");
+      checkoutLink.style.removeProperty("--checkout-eye-y");
+      if (document.activeElement !== checkoutLink && !checkoutLink.matches(":hover")) {
+        checkoutLink.classList.remove("is-creepy-active");
+      }
+    };
+
+    checkoutLink.addEventListener("pointerenter", () => checkoutLink.classList.add("is-creepy-active"));
+    checkoutLink.addEventListener("pointermove", (event) => {
+      if (!checkoutEyes) return;
+      const eyesRect = checkoutEyes.getBoundingClientRect();
+      const dx = event.clientX - (eyesRect.left + eyesRect.width / 2);
+      const dy = event.clientY - (eyesRect.top + eyesRect.height / 2);
+      const angle = Math.atan2(-dy, dx) + Math.PI / 2;
+      const distance = Math.hypot(dx, dy);
+      const x = (Math.sin(angle) * Math.min(distance, 180)) / 180;
+      const y = (Math.cos(angle) * Math.min(distance, 75)) / 75;
+      checkoutLink.style.setProperty("--checkout-eye-x", `${x * 50}%`);
+      checkoutLink.style.setProperty("--checkout-eye-y", `${y * 50}%`);
+      checkoutLink.classList.add("is-creepy-active");
+    });
+    checkoutLink.addEventListener("pointerleave", resetCheckoutEyes);
+    checkoutLink.addEventListener("focus", () => checkoutLink.classList.add("is-creepy-active"));
+    checkoutLink.addEventListener("blur", resetCheckoutEyes);
     checkoutLink.addEventListener("click", (event) => {
       const standardClick = event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
       if (!standardClick) {
