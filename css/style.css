@@ -323,7 +323,15 @@ h1, h2, h3, p { margin-top: 0; }
 .quantity-control button.quantity-action-plus::after, .quantity-control button.quantity-action-minus::after { position: absolute; z-index: 1; top: -10px; right: 2px; font-size: 8px; font-weight: 800; line-height: 1; pointer-events: none; animation: quantity-change-label .48s ease-out both; }
 .quantity-control button.quantity-action-plus::after { content: "+1"; color: var(--green); }
 .quantity-control button.quantity-action-minus::after { content: "−1"; color: #8b5360; }
-.quantity-control span { min-width: 18px; display: inline-block; color: var(--navy); font-size: 12px; font-weight: 700; text-align: center; transform-origin: center; }
+.quantity-control > span { min-width: 18px; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; color: var(--navy); font-size: 12px; font-weight: 700; line-height: 1.2; text-align: center; transform-origin: center; }
+.quantity-number-visual { display: inline-flex; overflow: hidden; line-height: 1.2; vertical-align: middle; }
+.quantity-digit-window { width: .68em; height: 1.2em; display: inline-block; overflow: hidden; }
+.quantity-digit-reel { display: flex; flex-direction: column; transition: transform .42s cubic-bezier(.22,1,.36,1); will-change: transform; }
+.quantity-digit-reel > span { height: 1.2em; flex: 0 0 1.2em; display: grid; place-items: center; }
+.quantity-digit-window-enter-up { animation: quantity-digit-enter-up .42s cubic-bezier(.22,1,.36,1) both; }
+.quantity-digit-window-enter-down { animation: quantity-digit-enter-down .42s cubic-bezier(.22,1,.36,1) both; }
+@keyframes quantity-digit-enter-up { from { opacity: 0; transform: translateY(1.2em); } to { opacity: 1; transform: translateY(0); } }
+@keyframes quantity-digit-enter-down { from { opacity: 0; transform: translateY(-1.2em); } to { opacity: 1; transform: translateY(0); } }
 .quantity-control span.quantity-value-plus { animation: quantity-value-plus .34s cubic-bezier(.2,.8,.25,1.25); }
 .quantity-control span.quantity-value-minus { animation: quantity-value-minus .34s cubic-bezier(.2,.7,.2,1); }
 @keyframes quantity-change-label { 0% { opacity: 0; transform: translateY(5px) scale(.75); } 22% { opacity: 1; } 100% { opacity: 0; transform: translateY(-12px) scale(1.05); } }

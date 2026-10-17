@@ -482,6 +482,103 @@ function animateQuantityFeedback(control, button, change) {
   }, 520);
 }
 
+function createQuantityDigitWindow(digit, entryDirection) {
+  const windowElement = document.createElement("span");
+  windowElement.className = "quantity-digit-window";
+  if (entryDirection) windowElement.classList.add("quantity-digit-window-enter-" + entryDirection);
+
+  const reel = document.createElement("span");
+  reel.className = "quantity-digit-reel";
+  const position = 20 + Number(digit);
+  reel.dataset.position = String(position);
+  reel.dataset.digit = String(digit);
+
+  for (let index = 0; index < 50; index += 1) {
+    const cell = document.createElement("span");
+    cell.textContent = String(index % 10);
+    reel.appendChild(cell);
+  }
+  reel.style.transform = "translateY(-" + (position * 1.2) + "em)";
+  reel.addEventListener("transitionend", (event) => {
+    if (event.propertyName !== "transform") return;
+    const currentPosition = Number(reel.dataset.position);
+    if (currentPosition >= 10 && currentPosition <= 40) return;
+
+    const centeredPosition = 20 + Number(reel.dataset.digit);
+    reel.style.transition = "none";
+    reel.style.transform = "translateY(-" + (centeredPosition * 1.2) + "em)";
+    reel.dataset.position = String(centeredPosition);
+    void reel.offsetHeight;
+    reel.style.removeProperty("transition");
+  });
+  windowElement.appendChild(reel);
+  return windowElement;
+}
+
+function initializeCartQuantityNumbers(root) {
+  if (!root) return;
+  root.querySelectorAll("[data-cart-quantity-value]").forEach((valueElement) => {
+    const quantity = Math.max(1, Math.trunc(Number(valueElement.textContent) || 1));
+    const visual = document.createElement("span");
+    visual.className = "quantity-number-visual";
+    visual.setAttribute("aria-hidden", "true");
+    String(quantity).split("").forEach((digit) => {
+      visual.appendChild(createQuantityDigitWindow(digit));
+    });
+
+    const accessibleValue = document.createElement("span");
+    accessibleValue.className = "sr-only quantity-number-accessible";
+    accessibleValue.textContent = String(quantity);
+    valueElement.dataset.currentQuantity = String(quantity);
+    valueElement.replaceChildren(visual, accessibleValue);
+  });
+}
+
+function setCartQuantityAnimated(valueElement, quantity) {
+  const nextQuantity = Math.max(1, Math.trunc(Number(quantity) || 1));
+  const previousQuantity = Math.max(1, Math.trunc(Number(valueElement.dataset.currentQuantity) || 1));
+  if (nextQuantity === previousQuantity) return;
+
+  const visual = valueElement.querySelector(".quantity-number-visual");
+  const accessibleValue = valueElement.querySelector(".quantity-number-accessible");
+  if (!visual || !accessibleValue) {
+    valueElement.textContent = String(nextQuantity);
+    return;
+  }
+
+  const direction = Math.sign(nextQuantity - previousQuantity);
+  const nextDigits = String(nextQuantity);
+  let windows = Array.from(visual.children);
+  while (windows.length > nextDigits.length) {
+    visual.firstElementChild.remove();
+    windows.shift();
+  }
+  while (windows.length < nextDigits.length) {
+    const digitIndex = nextDigits.length - windows.length - 1;
+    const entryDirection = direction < 0 ? "down" : "up";
+    visual.prepend(createQuantityDigitWindow(nextDigits[digitIndex], entryDirection));
+    windows = Array.from(visual.children);
+  }
+
+  windows.forEach((windowElement, index) => {
+    const reel = windowElement.firstElementChild;
+    const oldDigit = Number(reel.dataset.digit);
+    const nextDigit = Number(nextDigits[index]);
+    if (oldDigit === nextDigit) return;
+
+    const steps = direction < 0
+      ? -((oldDigit - nextDigit + 10) % 10)
+      : (nextDigit - oldDigit + 10) % 10;
+    const position = Number(reel.dataset.position) + steps;
+    reel.dataset.position = String(position);
+    reel.dataset.digit = String(nextDigit);
+    reel.style.transform = "translateY(-" + (position * 1.2) + "em)";
+  });
+
+  accessibleValue.textContent = nextDigits;
+  valueElement.dataset.currentQuantity = nextDigits;
+}
+
 function refreshCartPageTotals(target) {
   const items = cartItems();
   const count = items.reduce((total, item) => total + item.quantity, 0);
@@ -502,9 +599,9 @@ function refreshCartPageTotals(target) {
     if (!button) return;
     const product = findProduct(button.dataset.cartChange);
     const quantity = Number(getCart()[button.dataset.cartChange]) || 0;
-    const value = row.querySelector(".quantity-control span");
+    const value = row.querySelector("[data-cart-quantity-value]");
     const lineTotal = row.querySelector(".cart-line-total");
-    if (quantity > 0 && value) value.textContent = String(quantity);
+    if (quantity > 0 && value) setCartQuantityAnimated(value, quantity);
     if (product && lineTotal) lineTotal.textContent = formatPrice(product.price * quantity);
   });
 }
@@ -882,7 +979,7 @@ function renderCartPage() {
     '<article class="cart-item"><img src="' + escapeHTML(productGalleryImages(product)[0].src) + '" alt="' + escapeHTML(productGalleryImages(product)[0].alt) + '" />',
     '<div class="cart-item-info"><p class="product-category">' + escapeHTML(product.category) + '</p><h3>' + escapeHTML(product.name) + '</h3><strong>' + formatPrice(product.price) + ' each</strong></div>',
     '<div class="cart-item-actions"><div class="quantity-control" aria-label="' + escapeHTML(product.name) + ' quantity">',
-    '<button type="button" data-cart-change="' + product.id + '" data-change="-1" aria-label="Decrease ' + escapeHTML(product.name) + ' quantity">−</button><span aria-live="polite" aria-atomic="true">' + quantity + '</span>',
+    '<button type="button" data-cart-change="' + product.id + '" data-change="-1" aria-label="Decrease ' + escapeHTML(product.name) + ' quantity">−</button><span class="cart-quantity-value" data-cart-quantity-value aria-live="polite" aria-atomic="true">' + quantity + '</span>',
     '<button type="button" data-cart-change="' + product.id + '" data-change="1" aria-label="Increase ' + escapeHTML(product.name) + ' quantity">+</button></div>',
     '<button class="remove-button" type="button" data-remove-product="' + product.id + '">Remove</button></div>',
     '<strong class="cart-line-total">' + formatPrice(product.price * quantity) + '</strong></article>'
@@ -902,6 +999,7 @@ function renderCartPage() {
     '<span class="continue-checkout-placeholder" aria-hidden="true"><span>Continue to checkout</span><span>→</span></span></a></aside></div></section>'
   ].join("");
 
+  initializeCartQuantityNumbers(target);
   observeMotionTargets(target);
 
   target.querySelectorAll("[data-cart-change]").forEach((button) => {
