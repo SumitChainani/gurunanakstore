@@ -9,31 +9,17 @@ let server;
 let ordersFile;
 let temporaryDirectory;
 let createdOrder;
-let originalFetch;
 
 test.before(async () => {
   temporaryDirectory = await fs.mkdtemp(path.join(__dirname, ".orders-test-"));
   ordersFile = path.join(temporaryDirectory, "orders.json");
   process.env.ADMIN_PASSWORD = OWNER_PASSWORD;
   process.env.ORDERS_FILE = ordersFile;
-  delete process.env.WHATSAPP_ACCESS_TOKEN;
-  delete process.env.WHATSAPP_PHONE_NUMBER_ID;
-  delete process.env.WHATSAPP_OWNER_NUMBER;
-  delete process.env.WHATSAPP_GRAPH_API_VERSION;
-  delete process.env.WHATSAPP_TEMPLATE_NAME;
-  delete process.env.WHATSAPP_TEMPLATE_LANGUAGE;
   const app = require("./index");
   server = app.server;
 });
 
 test.after(async () => {
-  if (originalFetch) global.fetch = originalFetch;
-  delete process.env.WHATSAPP_ACCESS_TOKEN;
-  delete process.env.WHATSAPP_PHONE_NUMBER_ID;
-  delete process.env.WHATSAPP_OWNER_NUMBER;
-  delete process.env.WHATSAPP_GRAPH_API_VERSION;
-  delete process.env.WHATSAPP_TEMPLATE_NAME;
-  delete process.env.WHATSAPP_TEMPLATE_LANGUAGE;
   if (temporaryDirectory) await fs.rm(temporaryDirectory, { recursive: true, force: true });
 });
 
@@ -66,20 +52,6 @@ async function send(pathname, options) {
 }
 
 test("saves an order and exposes only its public status", async () => {
-  let whatsappAlertsSent = 0;
-  let whatsappPayload;
-  originalFetch = global.fetch;
-  process.env.WHATSAPP_ACCESS_TOKEN = "test-token";
-  process.env.WHATSAPP_PHONE_NUMBER_ID = "123456789012345";
-  process.env.WHATSAPP_OWNER_NUMBER = "919876543210";
-  process.env.WHATSAPP_GRAPH_API_VERSION = "v26.0";
-  process.env.WHATSAPP_TEMPLATE_NAME = "new_order_details";
-  process.env.WHATSAPP_TEMPLATE_LANGUAGE = "en_US";
-  global.fetch = async (url, options) => {
-    whatsappAlertsSent += 1;
-    whatsappPayload = JSON.parse(options.body);
-    return { ok: true, json: async () => ({ messages: [{ id: "wamid.test" }] }) };
-  };
   const response = await send("/api/orders", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -112,16 +84,6 @@ test("saves an order and exposes only its public status", async () => {
   const repeatedOrder = await repeatedSubmission.json();
   assert.equal(repeatedOrder.orderId, createdOrder.orderId);
   assert.equal(repeatedOrder.trackingCode, createdOrder.trackingCode);
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(whatsappAlertsSent, 0, "unverified UPI orders must not notify the owner");
-  assert.equal(whatsappPayload, undefined);
-  global.fetch = originalFetch;
-  delete process.env.WHATSAPP_ACCESS_TOKEN;
-  delete process.env.WHATSAPP_PHONE_NUMBER_ID;
-  delete process.env.WHATSAPP_OWNER_NUMBER;
-  delete process.env.WHATSAPP_GRAPH_API_VERSION;
-  delete process.env.WHATSAPP_TEMPLATE_NAME;
-  delete process.env.WHATSAPP_TEMPLATE_LANGUAGE;
 
   const publicResponse = await send("/api/orders/status?trackingCode=" + encodeURIComponent(createdOrder.trackingCode.toLowerCase()));
   assert.equal(publicResponse.status, 200);
@@ -140,62 +102,6 @@ test("saves an order and exposes only its public status", async () => {
   const savedOrders = JSON.parse(await fs.readFile(ordersFile, "utf8"));
   assert.equal(savedOrders.length, 1);
   assert.equal(savedOrders[0].customer.address, "12 Test Road, Pune 411001");
-});
-
-test("WhatsApp notification failure does not fail or undo a successfully saved order", async () => {
-  originalFetch = global.fetch;
-  process.env.WHATSAPP_ACCESS_TOKEN = "test-token";
-  process.env.WHATSAPP_PHONE_NUMBER_ID = "123456789012345";
-  process.env.WHATSAPP_OWNER_NUMBER = "919876543210";
-  process.env.WHATSAPP_GRAPH_API_VERSION = "v26.0";
-  process.env.WHATSAPP_TEMPLATE_NAME = "new_order_details";
-  process.env.WHATSAPP_TEMPLATE_LANGUAGE = "en_US";
-  global.fetch = async () => { throw new Error("simulated Meta outage"); };
-  const originalConsoleError = console.error;
-  console.error = () => {};
-
-  try {
-    const response = await send("/api/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        items: [{ productId: 1, quantity: 1 }],
-        customer: { name: "Alert Failure Test", phone: "8815960893", address: "15 Test Road, Pune 411001" },
-        checkoutReference: "GS1234567890126AB12CD34",
-        paymentReference: "UPI-ALERT-FAILURE"
-      })
-    });
-    assert.equal(response.status, 201);
-    const responseOrder = await response.json();
-    await new Promise((resolve) => setImmediate(resolve));
-    assert.equal(JSON.parse(await fs.readFile(ordersFile, "utf8")).find((order) => order.orderId === responseOrder.orderId).status, "PENDING");
-
-    const login = await send("/api/admin/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: OWNER_PASSWORD })
-    });
-    const session = await login.json();
-    const approval = await send("/api/admin/orders/" + responseOrder.orderId + "/approve", {
-      method: "POST",
-      headers: { Authorization: "Bearer " + session.token, "Content-Type": "application/json" },
-      body: JSON.stringify({})
-    });
-    assert.equal(approval.status, 200);
-    assert.equal((await approval.json()).paymentStatus, "MANUALLY_VERIFIED");
-    await new Promise((resolve) => setImmediate(resolve));
-    const savedOrders = JSON.parse(await fs.readFile(ordersFile, "utf8"));
-    assert.equal(savedOrders.find((order) => order.orderId === responseOrder.orderId).status, "APPROVED");
-  } finally {
-    console.error = originalConsoleError;
-    global.fetch = originalFetch;
-    delete process.env.WHATSAPP_ACCESS_TOKEN;
-    delete process.env.WHATSAPP_PHONE_NUMBER_ID;
-    delete process.env.WHATSAPP_OWNER_NUMBER;
-    delete process.env.WHATSAPP_GRAPH_API_VERSION;
-    delete process.env.WHATSAPP_TEMPLATE_NAME;
-    delete process.env.WHATSAPP_TEMPLATE_LANGUAGE;
-  }
 });
 
 test("keeps order details private until the owner signs in", async () => {
@@ -380,151 +286,43 @@ test("saves COD at full price and lets the owner accept it without marking payme
   assert.equal(approvedOrder.paymentMethod, "COD");
 });
 
-test("sends one owner-only WhatsApp alert for a newly saved COD order", async () => {
-  let whatsappAlertsSent = 0;
-  let whatsappPayload;
-  originalFetch = global.fetch;
-  process.env.WHATSAPP_ACCESS_TOKEN = "test-token";
-  process.env.WHATSAPP_PHONE_NUMBER_ID = "123456789012345";
-  process.env.WHATSAPP_OWNER_NUMBER = "919876543210";
-  process.env.WHATSAPP_GRAPH_API_VERSION = "v26.0";
-  process.env.WHATSAPP_TEMPLATE_NAME = "new_order_details";
-  process.env.WHATSAPP_TEMPLATE_LANGUAGE = "en_US";
-  global.fetch = async (_url, options) => {
-    whatsappAlertsSent += 1;
-    whatsappPayload = JSON.parse(options.body);
-    return { ok: true, json: async () => ({ messages: [{ id: "wamid.cod" }] }) };
-  };
+test("owner approval updates the public customer status", async () => {
+  const login = await send("/api/admin/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: OWNER_PASSWORD })
+  });
+  const session = await login.json();
+  const response = await send("/api/admin/orders/" + createdOrder.orderId + "/approve", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + session.token, "Content-Type": "application/json" },
+    body: JSON.stringify({})
+  });
+  assert.equal(response.status, 200);
+  const approval = await response.json();
+  assert.equal(approval.status, "APPROVED");
+  assert.equal(approval.trackingCode, createdOrder.trackingCode);
+  assert.equal(approval.paymentStatus, "MANUALLY_VERIFIED");
+  assert.ok(approval.confirmedAt);
 
-  try {
-    const requestBody = {
-      items: [{ productId: 1, quantity: 1 }],
-      customer: { name: "COD Alert Test", phone: "8815960894", address: "Private COD Address" },
-      paymentMethod: "COD",
-      checkoutReference: "GS1234567890127AB12CD34"
-    };
-    const firstOrderResponse = await send("/api/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody)
-    });
-    assert.equal(firstOrderResponse.status, 201);
-    const order = await firstOrderResponse.json();
-
-    const duplicateResponse = await send("/api/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody)
-    });
-    assert.equal(duplicateResponse.status, 201);
-    assert.equal((await duplicateResponse.json()).orderId, order.orderId);
-
-    await new Promise((resolve) => setImmediate(resolve));
-    assert.equal(whatsappAlertsSent, 1, "duplicate checkout retries must not send a second alert");
-    assert.equal(whatsappPayload.to, "919876543210");
-    assert.equal(whatsappPayload.template.name, "new_order_details");
-    assert.deepEqual(whatsappPayload.template.components[0].parameters.map((parameter) => parameter.text), [
-      order.orderId,
-      "₹329.00",
-      new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        hourCycle: "h23",
-        timeZone: "Asia/Kolkata"
-      }).format(new Date(order.createdAt)) + " IST"
-    ]);
-    assert.equal(JSON.stringify(whatsappPayload).includes("8815960894"), false);
-    assert.equal(JSON.stringify(whatsappPayload).includes("Private COD Address"), false);
-  } finally {
-    global.fetch = originalFetch;
-    delete process.env.WHATSAPP_ACCESS_TOKEN;
-    delete process.env.WHATSAPP_PHONE_NUMBER_ID;
-    delete process.env.WHATSAPP_OWNER_NUMBER;
-    delete process.env.WHATSAPP_GRAPH_API_VERSION;
-    delete process.env.WHATSAPP_TEMPLATE_NAME;
-    delete process.env.WHATSAPP_TEMPLATE_LANGUAGE;
-  }
+  const duplicateApproval = await send("/api/admin/orders/" + createdOrder.orderId + "/approve", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + session.token, "Content-Type": "application/json" },
+    body: JSON.stringify({})
+  });
+  assert.equal(duplicateApproval.status, 200);
+  const customerStatus = await send("/api/orders/status?trackingCode=" + encodeURIComponent(createdOrder.trackingCode));
+  assert.equal(customerStatus.status, 200);
+  assert.equal((await customerStatus.json()).status, "APPROVED");
 });
 
-test("owner approval updates the public customer status", async () => {
-  let whatsappAlertsSent = 0;
-  let whatsappPayload;
-  originalFetch = global.fetch;
-  process.env.WHATSAPP_ACCESS_TOKEN = "test-token";
-  process.env.WHATSAPP_PHONE_NUMBER_ID = "123456789012345";
-  process.env.WHATSAPP_OWNER_NUMBER = "919876543210";
-  process.env.WHATSAPP_GRAPH_API_VERSION = "v26.0";
-  process.env.WHATSAPP_TEMPLATE_NAME = "new_order_details";
-  process.env.WHATSAPP_TEMPLATE_LANGUAGE = "en_US";
-  global.fetch = async (_url, options) => {
-    whatsappAlertsSent += 1;
-    whatsappPayload = JSON.parse(options.body);
-    return { ok: true, json: async () => ({ messages: [{ id: "wamid.approved" }] }) };
-  };
+test("WhatsApp owner alerts and Meta webhook routes are removed", async () => {
+  const health = await send("/health");
+  assert.equal(health.status, 200);
+  assert.equal("whatsappAlertsConfigured" in await health.json(), false);
 
-  try {
-    const login = await send("/api/admin/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: OWNER_PASSWORD })
-    });
-    const session = await login.json();
-    const response = await send("/api/admin/orders/" + createdOrder.orderId + "/approve", {
-      method: "POST",
-      headers: { Authorization: "Bearer " + session.token, "Content-Type": "application/json" },
-      body: JSON.stringify({})
-    });
-    assert.equal(response.status, 200);
-    const approval = await response.json();
-    assert.equal(approval.status, "APPROVED");
-    assert.equal(approval.trackingCode, createdOrder.trackingCode);
-    assert.equal(approval.paymentStatus, "MANUALLY_VERIFIED");
-    assert.ok(approval.confirmedAt);
-
-    await new Promise((resolve) => setImmediate(resolve));
-    assert.equal(whatsappAlertsSent, 1);
-    assert.equal(whatsappPayload.to, "919876543210");
-    assert.equal(whatsappPayload.template.name, "new_order_details");
-    assert.deepEqual(whatsappPayload.template.components[0].parameters.map((parameter) => parameter.text), [
-      createdOrder.orderId,
-      "₹289.52",
-      new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        hourCycle: "h23",
-        timeZone: "Asia/Kolkata"
-      }).format(new Date(createdOrder.createdAt)) + " IST"
-    ]);
-    assert.equal(JSON.stringify(whatsappPayload).includes("8815960890"), false);
-    assert.equal(JSON.stringify(whatsappPayload).includes("12 Test Road"), false);
-
-    const duplicateApproval = await send("/api/admin/orders/" + createdOrder.orderId + "/approve", {
-      method: "POST",
-      headers: { Authorization: "Bearer " + session.token, "Content-Type": "application/json" },
-      body: JSON.stringify({})
-    });
-    assert.equal(duplicateApproval.status, 200);
-    await new Promise((resolve) => setImmediate(resolve));
-    assert.equal(whatsappAlertsSent, 1, "repeated approval must not send another alert");
-
-    const customerStatus = await send("/api/orders/status?trackingCode=" + encodeURIComponent(createdOrder.trackingCode));
-    assert.equal(customerStatus.status, 200);
-    assert.equal((await customerStatus.json()).status, "APPROVED");
-  } finally {
-    global.fetch = originalFetch;
-    delete process.env.WHATSAPP_ACCESS_TOKEN;
-    delete process.env.WHATSAPP_PHONE_NUMBER_ID;
-    delete process.env.WHATSAPP_OWNER_NUMBER;
-    delete process.env.WHATSAPP_GRAPH_API_VERSION;
-    delete process.env.WHATSAPP_TEMPLATE_NAME;
-    delete process.env.WHATSAPP_TEMPLATE_LANGUAGE;
-  }
+  const webhook = await send("/webhooks/whatsapp");
+  assert.equal(webhook.status, 404);
 });
 
 test("owner can reject pending orders and delete rejected or approved orders", async () => {

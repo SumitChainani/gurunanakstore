@@ -19,7 +19,7 @@ const API_BASE_URL = String(window.GURUNANAK_API_URL || window.GURUNANAK_PHONEPE
 const PHONEPE_API_BASE_URL = String(window.GURUNANAK_PHONEPE_API_URL || API_BASE_URL).replace(/\/+$/, "");
 const STORE_UPI_ID = String(window.GURUNANAK_UPI_ID || "").trim();
 const STORE_UPI_PAYEE_NAME = String(window.GURUNANAK_UPI_PAYEE_NAME || STORE_NAME).trim();
-const MOTION_REVEAL_SELECTOR = ".section-heading, .category-row, .product-card, .shop-tools, .catalogue-note, .brand-promise, .benefits-section article, .service-strip > *, .reviews-section > div, .about-copy > div, .values-section article, .about-cta, .contact-card, .contact-form, .product-detail-media, .product-detail-content, .product-reviews-header, .product-review-card, .review-form, .cart-item, .order-summary, .checkout-intro, .checkout-form, .payment-result";
+const MOTION_REVEAL_SELECTOR = ".section-heading, .category-row, .product-card, .shop-tools, .catalogue-note, .brand-promise, .benefits-section article, .service-strip > *, .reviews-section > div, .about-copy > div, .values-section article, .about-cta, .contact-card, .contact-form, .product-detail-media, .product-detail-content, .product-reviews-header, .product-review-card, .review-form, .cart-item, .order-summary, .checkout-intro, .checkout-form, .payment-result, .payment-word-reveal";
 let motionRevealObserver = null;
 let buttonClickSound = null;
 let paymentMethodAudioContext = null;
@@ -951,6 +951,59 @@ function renderCartPage() {
   }
 }
 
+function preparePaymentWordReveal(root) {
+  if (!root || typeof root.querySelectorAll !== "function") return;
+  const prefersReducedMotion = typeof window.matchMedia === "function"
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (prefersReducedMotion) return;
+
+  root.querySelectorAll("[data-payment-word-reveal]").forEach((element) => {
+    const walker = document.createTreeWalker(element, window.NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    while (walker.nextNode()) {
+      if (walker.currentNode.nodeValue.trim()
+        && !walker.currentNode.parentElement.closest(".payment-word-mask")) {
+        textNodes.push(walker.currentNode);
+      }
+    }
+    if (!textNodes.length) return;
+
+    element.classList.add("payment-word-reveal");
+    textNodes.forEach((textNode) => {
+      const chunks = textNode.nodeValue.match(/\s+|[^\s]+/g) || [];
+      const run = textNode.parentElement === element && element.children.length > 0
+        ? document.createElement("span")
+        : null;
+      const fragment = document.createDocumentFragment();
+      let wordIndex = 0;
+
+      chunks.forEach((chunk) => {
+        if (/^\s+$/.test(chunk)) {
+          fragment.appendChild(document.createTextNode(chunk));
+          return;
+        }
+
+        const mask = document.createElement("span");
+        const word = document.createElement("span");
+        mask.className = "payment-word-mask";
+        word.className = "payment-word";
+        word.style.setProperty("--word-delay", `${wordIndex++ * 50}ms`);
+        word.textContent = chunk;
+        mask.appendChild(word);
+        fragment.appendChild(mask);
+      });
+
+      if (run) {
+        run.className = "payment-word-run";
+        run.appendChild(fragment);
+        textNode.replaceWith(run);
+      } else {
+        textNode.replaceWith(fragment);
+      }
+    });
+  });
+}
+
 function renderCheckoutPage() {
   const target = document.querySelector("[data-checkout-page]");
   if (!target) return;
@@ -973,30 +1026,31 @@ function renderCheckoutPage() {
     '<p><a class="text-link text-link-dark" href="cart.html">← Back to your cart</a></p>',
     '<aside class="order-summary checkout-summary"><p class="eyebrow eyebrow-dark">Your order</p>' + summaryRows,
     '<div class="summary-line"><span>Delivery</span><strong>Confirm with support first</strong></div>',
-    '<div class="summary-total"><span data-checkout-total-label>PhonePe total after 12% discount</span><strong data-checkout-total>' + formatExactPrice(paymentTotal.payable) + '</strong></div>',
-    '<p class="summary-note">PhonePe UPI gets 12% off. Cash on delivery has no PhonePe discount. Delivery charges are confirmed separately.</p></aside></div>',
+    '<div class="summary-total"><span data-checkout-total-label data-payment-word-reveal>PhonePe total after 12% discount</span><strong data-checkout-total data-payment-word-reveal>' + formatExactPrice(paymentTotal.payable) + '</strong></div>',
+    '<p class="summary-note" data-payment-word-reveal>PhonePe UPI gets 12% off. Cash on delivery has no PhonePe discount. Delivery charges are confirmed separately.</p></aside></div>',
     '<form class="checkout-form" data-checkout-form>',
     '<div class="form-grid"><label>Full name<input name="name" autocomplete="name" placeholder="Your full name" required /></label>',
     '<label>Phone number<input name="phone" autocomplete="tel" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" placeholder="10-digit mobile number" required /></label></div>',
     '<label>Delivery address<textarea name="address" autocomplete="street-address" placeholder="House number, street, area, city, state and PIN code" required></textarea></label>',
-    '<fieldset class="payment-method-options"><legend>Choose a payment method</legend>',
-    '<label class="payment-method-option"><input type="radio" name="paymentMethod" value="PHONEPE_UPI" checked /><span><strong>PhonePe / UPI</strong><small>Pay now by QR and get 12% off.</small></span></label>',
-    '<label class="payment-method-option"><input type="radio" name="paymentMethod" value="COD" /><span><strong>Cash on delivery</strong><small>Pay cash when the order arrives. No advance payment.</small></span></label></fieldset>',
-    '<div data-upi-payment-details><section class="phonepe-payment-panel" aria-labelledby="phonepe-heading"><p class="eyebrow eyebrow-dark">UPI PAYMENT</p><h2 id="phonepe-heading"><span class="phonepe-mark" aria-hidden="true">पे</span> PhonePe QR</h2>',
-    '<p>The QR includes your cart amount after the 12% PhonePe discount. Scan it and check the payee and amount in your UPI app before confirming.</p>',
+    '<fieldset class="payment-method-options"><legend data-payment-word-reveal>Choose a payment method</legend>',
+    '<label class="payment-method-option"><input type="radio" name="paymentMethod" value="PHONEPE_UPI" checked /><span><strong data-payment-word-reveal>PhonePe / UPI</strong><small data-payment-word-reveal>Pay now by QR and get 12% off.</small></span></label>',
+    '<label class="payment-method-option"><input type="radio" name="paymentMethod" value="COD" /><span><strong data-payment-word-reveal>Cash on delivery</strong><small data-payment-word-reveal>Pay cash when the order arrives. No advance payment.</small></span></label></fieldset>',
+    '<div data-upi-payment-details><section class="phonepe-payment-panel" aria-labelledby="phonepe-heading"><p class="eyebrow eyebrow-dark" data-payment-word-reveal>UPI PAYMENT</p><h2 id="phonepe-heading"><span class="phonepe-mark" aria-hidden="true">पे</span><span data-payment-word-reveal>PhonePe QR</span></h2>',
+    '<p data-payment-word-reveal>The QR includes your cart amount after the 12% PhonePe discount. Scan it and check the payee and amount in your UPI app before confirming.</p>',
     '<input type="hidden" name="orderReference" value="' + orderReference + '" />',
-    '<div class="dynamic-qr-panel"><p class="eyebrow eyebrow-dark">SCAN WITH PHONEPE OR ANY UPI APP</p><h3>Payment QR</h3>',
+    '<div class="dynamic-qr-panel"><p class="eyebrow eyebrow-dark" data-payment-word-reveal>SCAN WITH PHONEPE OR ANY UPI APP</p><h3 data-payment-word-reveal>Payment QR</h3>',
     '<div class="dynamic-upi-qr" data-upi-qr aria-live="polite">Creating your payment QR…</div>',
-    '<p class="dynamic-qr-amount">Amount in QR (12% discount included): <strong>' + formatExactPrice(paymentTotal.payable) + '</strong></p>',
-    '<p class="dynamic-qr-note">After paying, enter the PhonePe transaction ID shown in your payment app before sending your order for approval. The store checks QR payments manually before approval.</p></div></section>',
-    '<label class="payment-reference-label">PhonePe transaction ID (required for PhonePe orders)<input name="paymentReference" maxlength="50" placeholder="Enter the transaction ID shown in PhonePe" required /></label></div>',
-    '<div class="cod-payment-note" data-cod-payment-note hidden><strong>Cash on delivery selected</strong><span>You will pay the order amount when it is delivered. Your request will be sent to GurunanakStore on WhatsApp for approval.</span></div>',
+    '<p class="dynamic-qr-amount" data-payment-word-reveal>Amount in QR (12% discount included): <strong>' + formatExactPrice(paymentTotal.payable) + '</strong></p>',
+    '<p class="dynamic-qr-note" data-payment-word-reveal>After paying, enter the PhonePe transaction ID shown in your payment app before sending your order for approval. The store checks QR payments manually before approval.</p></div></section>',
+    '<label class="payment-reference-label" data-payment-word-reveal>PhonePe transaction ID (required for PhonePe orders)<input name="paymentReference" maxlength="50" placeholder="Enter the transaction ID shown in PhonePe" required /></label></div>',
+    '<div class="cod-payment-note" data-cod-payment-note hidden><strong data-payment-word-reveal>Cash on delivery selected</strong><span data-payment-word-reveal>You will pay the order amount when it is delivered. Your request will be sent to GurunanakStore on WhatsApp for approval.</span></div>',
     '<button class="button button-outline button-wide whatsapp-order-button" type="submit"><span data-checkout-submit-label>Send for Order Approval</span> <span aria-hidden="true">↗</span></button>',
-    '<p class="order-confirmation-note" data-payment-method-note>PhonePe QR payments are checked manually and stay pending until the store approves them. Never share your UPI PIN or OTP with anyone.</p>',
+    '<p class="order-confirmation-note" data-payment-method-note data-payment-word-reveal>PhonePe QR payments are checked manually and stay pending until the store approves them. Never share your UPI PIN or OTP with anyone.</p>',
     '<p class="order-confirmation-note">Order summary: ' + escapeHTML(shortOrder) + '</p></form></section>'
   ].join("");
 
   renderDynamicUPIQRCode(target, paymentUri, paymentTotal.payable);
+  preparePaymentWordReveal(target);
   observeMotionTargets(target);
   observeCheckoutApprovalButton(target);
   observeCheckoutQRCode(target);
@@ -1129,6 +1183,8 @@ function updateCheckoutPaymentMethod(form, paymentTotal, animateSwitch = false) 
       ? "Cash will be collected on delivery after the store approves your order. Do not send advance UPI payment for a COD order."
       : "PhonePe QR payments are checked manually and stay pending until the store approves them. Never share your UPI PIN or OTP with anyone.";
   }
+  preparePaymentWordReveal(form);
+  observeMotionTargets(form);
 }
 
 async function startPhonePeCheckout(event) {
