@@ -129,6 +129,58 @@ function escapeHTML(value) {
   })[character]);
 }
 
+function renderWordRevealText(value) {
+  const text = String(value);
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return escapeHTML(text);
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return escapeHTML(text);
+  return '<span class="word-reveal-text" data-word-reveal>' + words.map((word, index) =>
+    '<span class="word-reveal-mask"><span class="word-reveal-word" style="--word-reveal-delay:' + (index * 0.05) + 's">' + escapeHTML(word) + '</span></span>'
+  ).join(" ") + '</span>';
+}
+
+let productNameRevealObserver = null;
+let productNameRevealMutationObserver = null;
+
+function initProductNameReveals(root = document) {
+  const reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reducedMotion) return;
+
+  function registerTitles(container) {
+    if (!container || typeof container.querySelectorAll !== "function") return;
+    const candidates = [];
+    if (container instanceof Element && container.matches("[data-word-reveal]")) candidates.push(container);
+    candidates.push(...container.querySelectorAll("[data-word-reveal]"));
+    candidates.forEach((element) => {
+      if (element.dataset.wordRevealReady === "true") return;
+      element.dataset.wordRevealReady = "true";
+      element.classList.add("is-word-reveal-pending");
+      if (!productNameRevealObserver) {
+        if (typeof IntersectionObserver !== "function") {
+          element.classList.add("is-word-reveal-visible");
+          return;
+        }
+        productNameRevealObserver = new IntersectionObserver((entries, observer) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            entry.target.classList.add("is-word-reveal-visible");
+            observer.unobserve(entry.target);
+          });
+        }, { threshold: 0.12 });
+      }
+      productNameRevealObserver.observe(element);
+    });
+  }
+
+  registerTitles(root);
+  if (!productNameRevealMutationObserver && typeof MutationObserver === "function" && document.body) {
+    productNameRevealMutationObserver = new MutationObserver((records) => {
+      records.forEach((record) => record.addedNodes.forEach(registerTitles));
+    });
+    productNameRevealMutationObserver.observe(document.body, { childList: true, subtree: true });
+  }
+}
+
 // A UPI QR is a UPI payment URI encoded as a QR image. The QR code library
 // runs in the browser; no cart details are sent to a QR image service.
 function buildUPIPaymentUri(amountRupees, orderReference) {
@@ -662,7 +714,7 @@ function productCard(product) {
     '<div class="product-image-wrap"><img src="' + escapeHTML(cardImage.src) + '" alt="' + escapeHTML(cardImage.alt) + '" />',
     '<span class="product-badge">' + escapeHTML(product.badge) + '</span></div></a>',
     '<div class="product-card-body"><p class="product-category">' + escapeHTML(product.category) + '</p>',
-    '<h3><a href="product.html?id=' + product.id + '">' + productName + '</a></h3>',
+    '<h3><a href="product.html?id=' + product.id + '">' + renderWordRevealText(product.name) + '</a></h3>',
     '<p class="product-card-copy">' + escapeHTML(product.shortDescription) + '</p>',
     '<div class="product-card-bottom"><strong>' + formatPrice(product.price) + '</strong>',
     '<button class="button button-small button-outline" type="button" data-add-product="' + product.id + '">Add</button>',
@@ -910,7 +962,7 @@ function initProductPage() {
     '<section class="product-detail">',
     '<div class="product-detail-media"><div class="product-detail-image"><img data-product-main-image data-gallery-index="0" src="' + escapeHTML(firstGalleryImage.src) + '" alt="' + escapeHTML(firstGalleryImage.alt) + '" />' + galleryArrows + '</div>' + galleryThumbnails + '</div>',
     '<div class="product-detail-content"><p class="eyebrow eyebrow-dark">' + escapeHTML(product.category) + ' <span aria-hidden="true">·</span> ' + escapeHTML(product.badge) + '</p>',
-    '<h1>' + escapeHTML(product.name) + '</h1><p class="detail-price">' + formatPrice(product.price) + '</p>',
+    '<h1>' + renderWordRevealText(product.name) + '</h1><p class="detail-price">' + formatPrice(product.price) + '</p>',
     '<p class="detail-description">' + escapeHTML(product.description) + '</p>',
     '<dl class="product-specs"><div><dt>Fit and details</dt><dd>' + escapeHTML(product.fitment) + '</dd></div>',
     '<div><dt>Delivery</dt><dd>Charges and availability confirmed before payment</dd></div></dl>',
@@ -977,7 +1029,7 @@ function renderCartPage() {
 
   const itemRows = items.map(({ product, quantity }) => [
     '<article class="cart-item"><img src="' + escapeHTML(productGalleryImages(product)[0].src) + '" alt="' + escapeHTML(productGalleryImages(product)[0].alt) + '" />',
-    '<div class="cart-item-info"><p class="product-category">' + escapeHTML(product.category) + '</p><h3>' + escapeHTML(product.name) + '</h3><strong>' + formatPrice(product.price) + ' each</strong></div>',
+    '<div class="cart-item-info"><p class="product-category">' + escapeHTML(product.category) + '</p><h3>' + renderWordRevealText(product.name) + '</h3><strong>' + formatPrice(product.price) + ' each</strong></div>',
     '<div class="cart-item-actions"><div class="quantity-control" aria-label="' + escapeHTML(product.name) + ' quantity">',
     '<button type="button" data-cart-change="' + product.id + '" data-change="-1" aria-label="Decrease ' + escapeHTML(product.name) + ' quantity">−</button><span class="cart-quantity-value" data-cart-quantity-value aria-live="polite" aria-atomic="true">' + quantity + '</span>',
     '<button type="button" data-cart-change="' + product.id + '" data-change="1" aria-label="Increase ' + escapeHTML(product.name) + ' quantity">+</button></div>',
@@ -1146,7 +1198,7 @@ function renderCheckoutPage() {
   const paymentTotal = phonePePaymentTotal(items);
   const orderReference = createCheckoutReference();
   const paymentUri = buildUPIPaymentUri(paymentTotal.payable, orderReference);
-  const summaryRows = items.map(({ product, quantity }) => '<div class="summary-line"><span>' + quantity + ' × ' + escapeHTML(product.name) + '</span><strong>' + formatPrice(product.price * quantity) + '</strong></div>').join("");
+  const summaryRows = items.map(({ product, quantity }) => '<div class="summary-line"><span>' + quantity + ' × ' + renderWordRevealText(product.name) + '</span><strong>' + formatPrice(product.price * quantity) + '</strong></div>').join("");
   target.innerHTML = [
     '<section class="checkout-page section"><div class="checkout-intro"><p class="eyebrow eyebrow-dark">Almost there</p><h1>Let’s get you<br />ready to ride.</h1>',
     '<p>Share your delivery details and choose PhonePe UPI or cash on delivery. The items below stay in this checkout while your cart is cleared. Then send your order on WhatsApp. Once it is saved, your tracking code appears on screen and in the message so you can check its approval status.</p>',
@@ -1617,7 +1669,7 @@ function renderCustomerOrderCards(container) {
 
   container.innerHTML = history.map((order) => {
     const itemMarkup = order.items.length
-      ? '<ul class="customer-order-items">' + order.items.map((item) => '<li><span>' + escapeHTML(item.name) + ' × ' + item.quantity + '</span><strong>' + formatPrice(item.price * item.quantity) + '</strong></li>').join("") + '</ul>'
+      ? '<ul class="customer-order-items">' + order.items.map((item) => '<li><span>' + renderWordRevealText(item.name) + ' × ' + item.quantity + '</span><strong>' + formatPrice(item.price * item.quantity) + '</strong></li>').join("") + '</ul>'
       : '<p class="customer-order-note">Items are not saved on this device for this older order.</p>';
     const trackUrl = order.trackingCode
       ? "order.html?trackingCode=" + encodeURIComponent(order.trackingCode)
@@ -2134,6 +2186,52 @@ function initHomeCollectionLink() {
   });
 }
 
+// Cycle the homepage's two-part tagline with a per-letter flip and blur reveal.
+function initHomeHeroFlip() {
+  const heading = document.querySelector("[data-home-hero-flip]");
+  if (!heading || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+
+  const phrases = Array.from(heading.querySelectorAll("[data-home-hero-phrase]"), (element) => ({
+    text: element.textContent.trim(),
+    accent: element.tagName === "EM"
+  }));
+  if (phrases.length < 2 || phrases.some((phrase) => !phrase.text)) return;
+
+  function createPhrase(index) {
+    const phrase = phrases[index];
+    const word = document.createElement(phrase.accent ? "em" : "span");
+    word.className = "hero-flip-word" + (phrase.accent ? " hero-flip-word--accent" : "");
+    word.setAttribute("aria-hidden", "true");
+
+    Array.from(phrase.text).forEach((character, letterIndex) => {
+      const letter = document.createElement("span");
+      letter.className = "hero-flip-letter";
+      letter.style.setProperty("--letter-index", String(letterIndex));
+      letter.textContent = character === " " ? "\u00a0" : character;
+      word.appendChild(letter);
+    });
+    return word;
+  }
+
+  let currentIndex = 0;
+  const firstPhrase = createPhrase(currentIndex);
+  heading.replaceChildren(firstPhrase);
+  window.requestAnimationFrame(() => firstPhrase.classList.add("is-entering"));
+
+  window.setInterval(() => {
+    const currentPhrase = heading.querySelector(".hero-flip-word");
+    if (!currentPhrase) return;
+    currentPhrase.classList.add("is-exiting");
+
+    window.setTimeout(() => {
+      currentIndex = (currentIndex + 1) % phrases.length;
+      const nextPhrase = createPhrase(currentIndex);
+      currentPhrase.replaceWith(nextPhrase);
+      window.requestAnimationFrame(() => nextPhrase.classList.add("is-entering"));
+    }, 950);
+  }, 2500);
+}
+
 // Play the supplied reveal sound only when the visitor arrived via the homepage CTA.
 function initShopLogoRevealSound() {
   const logoMark = document.querySelector(".shop-hero-logo-mark");
@@ -2487,6 +2585,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initStickyCartSummary();
   initNavigation();
   initHomeCollectionLink();
+  initHomeHeroFlip();
   initShopLogoRevealSound();
   initHeadlightAudio();
   initWhatsAppLinks();
@@ -2498,6 +2597,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initContactForm();
   initOrderHistoryPage();
   initSupportChat();
+  initProductNameReveals();
   updateCartCount();
   document.querySelectorAll("[data-year]").forEach((element) => {
     element.textContent = new Date().getFullYear();
