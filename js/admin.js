@@ -47,53 +47,90 @@ function showLogin(message) {
   loginNotice.textContent = message || "";
 }
 
+function renderOrderCard(order) {
+  const itemRows = order.items.map((item) => '<li><span>' + escapeAdminHTML(item.name) + ' × ' + Number(item.quantity) + '</span><strong>' + adminPrice(Number(item.unitPrice) * Number(item.quantity)) + '</strong></li>').join("");
+  const created = new Date(order.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+  const phoneDigits = String(order.customer.phone).replace(/\D/g, "");
+  const isApproved = order.status === "APPROVED";
+  const isRejected = order.status === "REJECTED";
+  const isPending = !isApproved && !isRejected;
+  const isCOD = order.paymentMethod === "COD";
+  const stateClass = isApproved ? "is-approved" : isRejected ? "is-rejected" : "is-pending";
+  const stateLabel = isApproved ? "Approved" : isRejected ? "Rejected" : "Needs review";
+  const paymentMethod = isCOD ? "Cash on delivery" : "PhonePe / UPI";
+  const paymentReference = isCOD
+    ? '<p><span>Transaction reference</span><strong>Not needed for COD</strong></p>'
+    : order.paymentReference
+      ? '<p><span>Transaction reference</span><strong>' + escapeAdminHTML(order.paymentReference) + '</strong></p>'
+      : '<p><span>Transaction reference</span><strong>Customer has not entered one</strong></p>';
+  const trackingCode = order.trackingCode
+    ? '<p><span>Customer tracking code</span><strong><code>' + escapeAdminHTML(order.trackingCode) + '</code></strong></p>'
+    : '<p><span>Customer tracking code</span><strong>Older order; use its existing reference</strong></p>';
+  const actionButtons = (isPending
+    ? '<button class="button button-gold admin-approve-button" type="button" data-approve-order="' + escapeAdminHTML(order.orderId) + '" data-payment-method="' + (isCOD ? 'COD' : 'PHONEPE_UPI') + '" ' + (!isCOD && !order.paymentReference ? 'disabled title="Ask the customer for their transaction reference first."' : '') + '>' + (isCOD ? 'Approve COD order' : 'Confirm payment &amp; approve order') + '</button>' +
+      '<button class="button button-outline admin-reject-button" type="button" data-reject-order="' + escapeAdminHTML(order.orderId) + '">Reject order</button>'
+    : '') +
+    '<button class="button button-outline admin-delete-button" type="button" data-delete-order="' + escapeAdminHTML(order.orderId) + '">Delete order</button>';
+  const statusNote = isApproved
+    ? '<p class="admin-approved-note">' + (isCOD ? 'COD order accepted; payment is due at delivery. ' : 'Order approved and PhonePe payment manually reviewed. ') + escapeAdminHTML(new Date(order.confirmedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })) + '.</p>'
+    : isRejected
+      ? '<p class="admin-rejected-note">Order rejected' + (order.rejectedAt ? ' on ' + escapeAdminHTML(new Date(order.rejectedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })) : '') + '. PhonePe payment status is unchanged; no refund is initiated here.</p>'
+      : isCOD
+        ? '<p class="admin-order-reminder">Approve the order details and availability. Collect cash on delivery; this does not mark an online payment as paid.</p>'
+        : order.paymentReference
+          ? '<p class="admin-order-reminder">Check this reference in PhonePe Business before approving. The website cannot verify QR transfers by reference alone.</p>'
+          : '<p class="admin-order-reminder">Ask the customer for their PhonePe transaction reference before approving.</p>';
+
+  return '<article class="admin-order-card" data-order-card="' + escapeAdminHTML(order.orderId) + '">' +
+    '<div class="admin-order-top"><div><p class="eyebrow eyebrow-dark">ORDER ' + escapeAdminHTML(order.orderId) + '</p><span class="admin-order-date">' + escapeAdminHTML(created) + '</span></div>' +
+    '<span class="admin-order-state ' + stateClass + '">' + stateLabel + '</span></div>' +
+    '<div class="admin-order-columns"><section><h2>Customer</h2><p><strong>' + escapeAdminHTML(order.customer.name) + '</strong></p><p><a href="tel:+91' + encodeURIComponent(phoneDigits) + '">' + escapeAdminHTML(order.customer.phone) + '</a></p><p class="admin-order-address">' + escapeAdminHTML(order.customer.address) + '</p><p><span>Payment method</span><strong>' + paymentMethod + '</strong></p>' + trackingCode + paymentReference + (isCOD ? '' : '<p><span>UPI QR reference</span><strong>' + escapeAdminHTML(order.checkoutReference) + '</strong></p>') + '</section>' +
+    '<section><h2>Items</h2><ul class="admin-item-list">' + itemRows + '</ul><div class="admin-order-total"><span>Items total</span><strong>' + adminPrice(order.subtotalRupees) + '</strong></div>' + (isCOD ? '' : '<div class="admin-order-total"><span>PhonePe discount</span><strong>−' + adminPrice(order.discountRupees) + '</strong></div>') + '<div class="admin-order-total admin-order-payable"><span>' + (isCOD ? 'Cash due on delivery' : 'QR amount') + '</span><strong>' + adminPrice(order.amountRupees) + '</strong></div></section></div>' +
+    '<div class="admin-order-actions">' + actionButtons + '</div>' + statusNote +
+    '</article>';
+}
+
 function renderOrders(orders) {
-  if (!orders.length) {
-    ordersContainer.innerHTML = '<div class="admin-empty"><span class="empty-icon" aria-hidden="true">GS</span><h2>No orders yet</h2><p>Orders appear here after the customer finishes checkout and submits the order. Scanning or paying the PhonePe QR by itself does not send the order to the store.</p></div>';
-    return;
-  }
+  const sections = [
+    {
+      id: "pending",
+      eyebrow: "ACTION REQUIRED",
+      title: "Pending orders",
+      emptyTitle: "No orders to review",
+      emptyCopy: "New orders will appear here when a customer submits checkout."
+    },
+    {
+      id: "approved",
+      eyebrow: "ACCEPTED",
+      title: "Accepted orders",
+      emptyTitle: "No accepted orders yet",
+      emptyCopy: "Orders you approve will be kept in this section."
+    },
+    {
+      id: "rejected",
+      eyebrow: "DECLINED",
+      title: "Rejected orders",
+      emptyTitle: "No rejected orders yet",
+      emptyCopy: "Orders you reject will be kept in this section."
+    }
+  ];
 
-  ordersContainer.innerHTML = orders.map((order) => {
-    const itemRows = order.items.map((item) => '<li><span>' + escapeAdminHTML(item.name) + ' × ' + Number(item.quantity) + '</span><strong>' + adminPrice(Number(item.unitPrice) * Number(item.quantity)) + '</strong></li>').join("");
-    const created = new Date(order.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
-    const phoneDigits = String(order.customer.phone).replace(/\D/g, "");
-    const isApproved = order.status === "APPROVED";
-    const isRejected = order.status === "REJECTED";
-    const isPending = !isApproved && !isRejected;
-    const isCOD = order.paymentMethod === "COD";
-    const stateClass = isApproved ? "is-approved" : isRejected ? "is-rejected" : "is-pending";
-    const stateLabel = isApproved ? "Approved" : isRejected ? "Rejected" : "Needs review";
-    const paymentMethod = isCOD ? "Cash on delivery" : "PhonePe / UPI";
-    const paymentReference = isCOD
-      ? '<p><span>Transaction reference</span><strong>Not needed for COD</strong></p>'
-      : order.paymentReference
-        ? '<p><span>Transaction reference</span><strong>' + escapeAdminHTML(order.paymentReference) + '</strong></p>'
-        : '<p><span>Transaction reference</span><strong>Customer has not entered one</strong></p>';
-    const trackingCode = order.trackingCode
-      ? '<p><span>Customer tracking code</span><strong><code>' + escapeAdminHTML(order.trackingCode) + '</code></strong></p>'
-      : '<p><span>Customer tracking code</span><strong>Older order; use its existing reference</strong></p>';
-    const actionButtons = (isPending
-      ? '<button class="button button-gold admin-approve-button" type="button" data-approve-order="' + escapeAdminHTML(order.orderId) + '" data-payment-method="' + (isCOD ? 'COD' : 'PHONEPE_UPI') + '" ' + (!isCOD && !order.paymentReference ? 'disabled title="Ask the customer for their transaction reference first."' : '') + '>' + (isCOD ? 'Approve COD order' : 'Confirm payment &amp; approve order') + '</button>' +
-        '<button class="button button-outline admin-reject-button" type="button" data-reject-order="' + escapeAdminHTML(order.orderId) + '">Reject order</button>'
-      : '') +
-      '<button class="button button-outline admin-delete-button" type="button" data-delete-order="' + escapeAdminHTML(order.orderId) + '">Delete order</button>';
-    const statusNote = isApproved
-      ? '<p class="admin-approved-note">' + (isCOD ? 'COD order accepted; payment is due at delivery. ' : 'Order approved and PhonePe payment manually reviewed. ') + escapeAdminHTML(new Date(order.confirmedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })) + '.</p>'
-      : isRejected
-        ? '<p class="admin-rejected-note">Order rejected' + (order.rejectedAt ? ' on ' + escapeAdminHTML(new Date(order.rejectedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })) : '') + '. PhonePe payment status is unchanged; no refund is initiated here.</p>'
-        : isCOD
-          ? '<p class="admin-order-reminder">Approve the order details and availability. Collect cash on delivery; this does not mark an online payment as paid.</p>'
-          : order.paymentReference
-            ? '<p class="admin-order-reminder">Check this reference in PhonePe Business before approving. The website cannot verify QR transfers by reference alone.</p>'
-            : '<p class="admin-order-reminder">Ask the customer for their PhonePe transaction reference before approving.</p>';
+  const getOrdersForSection = (sectionId) => orders.filter((order) => {
+    if (sectionId === "approved") return order.status === "APPROVED";
+    if (sectionId === "rejected") return order.status === "REJECTED";
+    return order.status !== "APPROVED" && order.status !== "REJECTED";
+  });
 
-    return '<article class="admin-order-card" data-order-card="' + escapeAdminHTML(order.orderId) + '">' +
-      '<div class="admin-order-top"><div><p class="eyebrow eyebrow-dark">ORDER ' + escapeAdminHTML(order.orderId) + '</p><span class="admin-order-date">' + escapeAdminHTML(created) + '</span></div>' +
-      '<span class="admin-order-state ' + stateClass + '">' + stateLabel + '</span></div>' +
-      '<div class="admin-order-columns"><section><h2>Customer</h2><p><strong>' + escapeAdminHTML(order.customer.name) + '</strong></p><p><a href="tel:+91' + encodeURIComponent(phoneDigits) + '">' + escapeAdminHTML(order.customer.phone) + '</a></p><p class="admin-order-address">' + escapeAdminHTML(order.customer.address) + '</p><p><span>Payment method</span><strong>' + paymentMethod + '</strong></p>' + trackingCode + paymentReference + (isCOD ? '' : '<p><span>UPI QR reference</span><strong>' + escapeAdminHTML(order.checkoutReference) + '</strong></p>') + '</section>' +
-      '<section><h2>Items</h2><ul class="admin-item-list">' + itemRows + '</ul><div class="admin-order-total"><span>Items total</span><strong>' + adminPrice(order.subtotalRupees) + '</strong></div>' + (isCOD ? '' : '<div class="admin-order-total"><span>PhonePe discount</span><strong>−' + adminPrice(order.discountRupees) + '</strong></div>') + '<div class="admin-order-total admin-order-payable"><span>' + (isCOD ? 'Cash due on delivery' : 'QR amount') + '</span><strong>' + adminPrice(order.amountRupees) + '</strong></div></section></div>' +
-      '<div class="admin-order-actions">' + actionButtons + '</div>' + statusNote +
-      '</article>';
+  ordersContainer.innerHTML = sections.map((section) => {
+    const sectionOrders = getOrdersForSection(section.id);
+    const cards = sectionOrders.length
+      ? sectionOrders.map(renderOrderCard).join("")
+      : '<div class="admin-empty"><h2>' + section.emptyTitle + '</h2><p>' + section.emptyCopy + '</p></div>';
+    return '<section class="admin-order-section" data-status="' + section.id + '" aria-labelledby="admin-orders-' + section.id + '">' +
+      '<div class="admin-order-section-heading"><div><p class="eyebrow eyebrow-dark">' + section.eyebrow + '</p><h2 id="admin-orders-' + section.id + '">' + section.title + '</h2></div>' +
+      '<span class="admin-order-count" aria-label="' + sectionOrders.length + ' orders">' + sectionOrders.length + '</span></div>' +
+      '<div class="admin-order-list">' + cards + '</div>' +
+      '</section>';
   }).join("");
 
   ordersContainer.querySelectorAll("[data-approve-order]").forEach((button) => {

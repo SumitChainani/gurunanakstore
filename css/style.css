@@ -634,6 +634,15 @@ h1, h2, h3, p { margin-top: 0; }
 .admin-actions { display: flex; align-items: center; gap: 14px; }
 .admin-actions .button { min-height: 44px; }
 .admin-actions [data-admin-logout] { padding: 8px; border: 0; background: transparent; cursor: pointer; }
+.admin-order-sections { display: grid; gap: 30px; }
+.admin-order-section { min-width: 0; }
+.admin-order-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 13px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.admin-order-section-heading .eyebrow { margin-bottom: 4px; font-size: 8px; }
+.admin-order-section-heading h2 { margin: 0; color: var(--navy); font-family: var(--display); font-size: 27px; font-weight: 600; line-height: 1; }
+.admin-order-count { min-width: 34px; height: 34px; display: grid; place-items: center; padding: 0 7px; border: 1px solid var(--line); border-radius: 50%; background: var(--white); color: var(--navy); font-size: 11px; font-weight: 700; }
+.admin-order-section[data-status="pending"] .admin-order-count { border-color: #ead8a8; background: #fff4d9; color: #77591f; }
+.admin-order-section[data-status="approved"] .admin-order-count { border-color: #c9e8d3; background: #e8f6ed; color: #176b40; }
+.admin-order-section[data-status="rejected"] .admin-order-count { border-color: #f0d0cd; background: #fff1ef; color: #a63835; }
 .admin-order-list { display: grid; gap: 15px; }
 .admin-order-card { display: grid; gap: 17px; padding: 18px; border: 1px solid var(--line); background: var(--white); box-shadow: 0 7px 22px rgba(19,29,44,.04); }
 .admin-order-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding-bottom: 13px; border-bottom: 1px solid var(--line); }
