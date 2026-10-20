@@ -9,6 +9,44 @@
 
 const PRODUCTS = [
   {
+    id: 17,
+    name: "MotoX 100W LED Projector Headlight Bulb for Bikes and Cars, Bright White Beam, Durable Metal Body, Pack of 5 | 1-Month Warranty",
+    category: "Electronics",
+    price: 4499,
+    badge: "Featured",
+    image: "images/motox-100w-projector-headlight-front.png",
+    alt: "MotoX LED projector headlight bulb with a compact body and clear projector lens",
+    gallery: [
+      {
+        src: "images/motox-100w-projector-headlight-front.png",
+        alt: "MotoX projector headlight bulb shown from the front"
+      },
+      {
+        src: "images/motox-100w-cooling-system.png",
+        alt: "LED headlight bulb cooling system infographic"
+      },
+      {
+        src: "images/motox-100w-projector-lens.jpg",
+        alt: "Projector LED bulb lens and beam illustration"
+      },
+      {
+        src: "images/motox-100w-plug-and-play-showcase.png",
+        alt: "100W projector LED headlight bulb showcase"
+      }
+    ],
+    shortDescription: "MotoX 100W LED projector headlight bulb with a bright white beam and durable metal body. Pack of 5; includes a 1-month warranty.",
+    description: "A pack of five MotoX 100W LED projector headlight bulbs for bikes and cars, with a bright white beam, projector lens design, durable metal body, and cooling system. Confirm bulb socket and vehicle compatibility before ordering. Includes a 1-month warranty.",
+    fitment: "For bikes and cars; confirm bulb socket, vehicle compatibility, and included parts before ordering",
+    highlights: [
+      "100W LED projector headlight bulb",
+      "Bright white beam",
+      "Projector lens design",
+      "Durable metal body",
+      "Cooling system",
+      "Pack of 5"
+    ]
+  },
+  {
     id: 1,
     name: "Helmet LED – Dual Beam Smart Light | Premium 360° Visibility & Stylish Design for Night Riding | 1-Month Warranty",
     category: "Rider gear",

@@ -727,7 +727,7 @@ function productCard(product) {
   const productName = escapeHTML(product.name);
   const cardImage = productGalleryImages(product)[0];
   return [
-    '<article class="product-card">',
+    '<article class="product-card' + (product.badge === "Featured" ? ' product-card-featured' : '') + '">',
     '<a class="product-image-link" href="product.html?id=' + product.id + '" aria-label="View ' + productName + '">',
     '<div class="product-image-wrap"><img src="' + escapeHTML(cardImage.src) + '" alt="' + escapeHTML(cardImage.alt) + '" />',
     '<span class="product-badge">' + escapeHTML(product.badge) + '</span></div></a>',
@@ -979,9 +979,14 @@ function initProductPage() {
     '<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="index.html">Home</a><span aria-hidden="true">/</span><a href="shop.html">Shop</a><span aria-hidden="true">/</span><span>' + escapeHTML(product.name) + '</span></nav>',
     '<section class="product-detail">',
     '<div class="product-detail-media"><div class="product-detail-image"><img data-product-main-image data-gallery-index="0" src="' + escapeHTML(firstGalleryImage.src) + '" alt="' + escapeHTML(firstGalleryImage.alt) + '" />' + galleryArrows + '</div>' + galleryThumbnails + '</div>',
-    '<div class="product-detail-content"><p class="eyebrow eyebrow-dark">' + escapeHTML(product.category) + ' <span aria-hidden="true">·</span> ' + escapeHTML(product.badge) + '</p>',
+    '<div class="product-detail-content">' + (product.badge === "Featured" ? '<span class="product-featured-label">Featured product</span>' : '') + '<p class="eyebrow eyebrow-dark">' + escapeHTML(product.category) + ' <span aria-hidden="true">·</span> ' + escapeHTML(product.badge) + '</p>',
     '<h1>' + renderWordRevealText(product.name) + '</h1><p class="detail-price">' + formatPrice(product.price) + '</p>',
     '<p class="detail-description">' + escapeHTML(product.description) + '</p>',
+    Array.isArray(product.highlights) && product.highlights.length ? [
+      '<section class="product-highlights" aria-label="Product highlights"><h2>Product highlights</h2><ul>',
+      product.highlights.map((highlight) => '<li>' + escapeHTML(highlight) + '</li>').join(""),
+      '</ul></section>'
+    ].join("") : '',
     '<dl class="product-specs"><div><dt>Fit and details</dt><dd>' + escapeHTML(product.fitment) + '</dd></div>',
     '<div><dt>Delivery</dt><dd>Charges and availability confirmed before payment</dd></div></dl>',
     '<div class="product-buy-row"><div class="quantity-control" aria-label="Product quantity">',
