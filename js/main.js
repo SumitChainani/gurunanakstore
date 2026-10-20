@@ -129,20 +129,35 @@ function escapeHTML(value) {
   })[character]);
 }
 
-function renderWordRevealText(value) {
+function renderWordRevealText(value, wordStagger = 0.05) {
   const text = String(value);
   if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return escapeHTML(text);
   const words = text.trim().split(/\s+/).filter(Boolean);
   if (!words.length) return escapeHTML(text);
   return '<span class="word-reveal-text" data-word-reveal>' + words.map((word, index) =>
-    '<span class="word-reveal-mask"><span class="word-reveal-word" style="--word-reveal-delay:' + (index * 0.05) + 's">' + escapeHTML(word) + '</span></span>'
+    '<span class="word-reveal-mask"><span class="word-reveal-word" style="--word-reveal-delay:' + (index * wordStagger) + 's">' + escapeHTML(word) + '</span></span>'
   ).join(" ") + '</span>';
 }
 
 let productNameRevealObserver = null;
 let productNameRevealMutationObserver = null;
 
+function prepareWordRevealText(root = document) {
+  const reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reducedMotion || !root || typeof root.querySelectorAll !== "function") return;
+  const candidates = [];
+  if (root instanceof Element && root.matches("[data-word-reveal-text]")) candidates.push(root);
+  candidates.push(...root.querySelectorAll("[data-word-reveal-text]"));
+  candidates.forEach((element) => {
+    if (element.dataset.wordRevealTextReady === "true") return;
+    element.dataset.wordRevealTextReady = "true";
+    const isReturnPolicy = element.closest(".shop-return-policy, .return-policy-highlight");
+    element.innerHTML = renderWordRevealText(element.textContent || "", isReturnPolicy ? 0.065 : 0.05);
+  });
+}
+
 function initProductNameReveals(root = document) {
+  prepareWordRevealText(root);
   const reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (reducedMotion) return;
 
@@ -175,7 +190,10 @@ function initProductNameReveals(root = document) {
   registerTitles(root);
   if (!productNameRevealMutationObserver && typeof MutationObserver === "function" && document.body) {
     productNameRevealMutationObserver = new MutationObserver((records) => {
-      records.forEach((record) => record.addedNodes.forEach(registerTitles));
+      records.forEach((record) => record.addedNodes.forEach((node) => {
+        prepareWordRevealText(node);
+        registerTitles(node);
+      }));
     });
     productNameRevealMutationObserver.observe(document.body, { childList: true, subtree: true });
   }
@@ -1211,6 +1229,7 @@ function renderCheckoutPage() {
     '<div class="form-grid"><label>Full name<input name="name" autocomplete="name" placeholder="Your full name" required /></label>',
     '<label>Phone number<input name="phone" autocomplete="tel" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" placeholder="10-digit mobile number" required /></label></div>',
     '<label>Delivery address<textarea name="address" autocomplete="street-address" placeholder="House number, street, area, city, state and PIN code" required></textarea></label>',
+    '<aside class="return-policy-highlight" aria-label="3-day return policy"><span class="return-policy-icon" aria-hidden="true">↺</span><span><strong data-word-reveal-text>3-Day Return Policy</strong><small data-word-reveal-text>Request a return within 3 days of delivery. WhatsApp support can help.</small></span></aside>',
     '<fieldset class="payment-method-options"><legend data-payment-word-reveal>Choose a payment method</legend>',
     '<label class="payment-method-option"><input type="radio" name="paymentMethod" value="PHONEPE_UPI" checked /><span><strong data-payment-word-reveal>PhonePe / UPI</strong><small data-payment-word-reveal>Pay now by QR and get 12% off.</small></span></label>',
     '<label class="payment-method-option"><input type="radio" name="paymentMethod" value="COD" /><span><strong data-payment-word-reveal>Cash on delivery</strong><small data-payment-word-reveal>Pay cash when the order arrives. No advance payment.</small></span></label></fieldset>',
